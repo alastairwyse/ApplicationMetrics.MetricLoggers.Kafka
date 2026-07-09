@@ -1,0 +1,14 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <Description>An ApplicationMetrics metric logger which writes metric and instrumentation events to Kafka broker, and allows consuming the events via a Kafka consumer.</Description>
+    <Version>1.0.0</Version>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="ApplicationMetrics" Version="7.0.0" />
+    <PackageReference Include="Confluent.Kafka" Version="2.15.0" />
+  </ItemGroup>
+
+</Project>
