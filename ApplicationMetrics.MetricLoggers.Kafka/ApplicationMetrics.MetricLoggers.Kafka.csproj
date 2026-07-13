@@ -9,6 +9,10 @@
   <ItemGroup>
     <PackageReference Include="ApplicationMetrics" Version="7.0.0" />
     <PackageReference Include="Confluent.Kafka" Version="2.15.0" />
+    <PackageReference Include="Grpc.Tools" Version="2.82.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
   </ItemGroup>
 
 </Project>

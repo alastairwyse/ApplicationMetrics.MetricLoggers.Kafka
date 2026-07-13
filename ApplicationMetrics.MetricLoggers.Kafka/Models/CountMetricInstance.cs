@@ -15,59 +15,38 @@
  */
 
 using System;
+using ApplicationMetrics;
 
 namespace ApplicationMetrics.MetricLoggers.Kafka.Models
 {
     /// <summary>
-    /// Base for metric instance classes.
+    /// An instance of a <see cref="CountMetric"/>
     /// </summary>
-    public abstract class MetricInstanceBase
+    public class CountMetricInstance : MetricInstanceBase
     {
-        /// <summary>The fully qualified name of the .NET <see cref="Type"/> of the metric.</summary>
-        public String TypeFullName { get; }
-
-        /// <summary>The category of the metric.</summary>
-        public String Category { get; }
-
-        /// <summary>The name of the metric.</summary>
-        public String Name { get; }
-
-        /// <summary>A description of the metric, explaining what it measures and/or represents.</summary>
-        public String Description { get; }
-
-        /// <summary>The timestamp when the metric occurred.</summary>
-        public DateTime EventTime { get; }
-
         /// <summary>
-        /// Initialises a new instance of the ApplicationMetrics.MetricLoggers.Kafka.Models.MetricInstanceBase class.
+        /// Initialises a new instance of the ApplicationMetrics.MetricLoggers.Kafka.Models.CountMetricInstance class.
         /// </summary>
         /// <param name="typeFullName">The fully qualified name of the .NET <see cref="Type"/> of the metric.</param>
         /// <param name="name">The name of the metric.</param>
         /// <param name="description">A description of the metric, explaining what it measures and/or represents.</param>
         /// <param name="eventTime">The timestamp when the metric occurred.</param>
-        public MetricInstanceBase(String typeFullName, String name, String description, DateTime eventTime)
+        public CountMetricInstance(String typeFullName, String name, String description, DateTime eventTime)
+            : base(typeFullName, name, description, eventTime)
         {
-            if (eventTime.Kind != DateTimeKind.Utc)
-                throw new ArgumentException($"Parameter '{nameof(eventTime)}' must be represented as UTC.", nameof(eventTime));
-
-            Category = null;
-            Name = name;
-            Description = description;
-            EventTime = eventTime;
         }
 
         /// <summary>
-        /// Initialises a new instance of the ApplicationMetrics.MetricLoggers.Kafka.Models.MetricInstanceBase class.
+        /// Initialises a new instance of the ApplicationMetrics.MetricLoggers.Kafka.Models.CountMetricInstance class.
         /// </summary>
         /// <param name="typeFullName">The fully qualified name of the .NET <see cref="Type"/> of the metric.</param>
         /// <param name="category">The category of the metric.</param>
         /// <param name="name">The name of the metric.</param>
         /// <param name="description">A description of the metric, explaining what it measures and/or represents.</param>
         /// <param name="eventTime">The timestamp when the metric occurred.</param>
-        public MetricInstanceBase(String typeFullName, String category, String name, String description, DateTime eventTime)
-            : this(typeFullName, name, description, eventTime)
+        public CountMetricInstance(String typeFullName, String category, String name, String description, DateTime eventTime)
+            : base(typeFullName, category, name, description, eventTime)
         {
-            Category = category;
         }
     }
 }
