@@ -9,10 +9,19 @@
   <ItemGroup>
     <PackageReference Include="ApplicationMetrics" Version="7.0.0" />
     <PackageReference Include="Confluent.Kafka" Version="2.15.0" />
+    <PackageReference Include="Google.Protobuf" Version="3.35.1" />
     <PackageReference Include="Grpc.Tools" Version="2.82.0">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Models\Protos\" />
+  </ItemGroup>
+    
+  <ItemGroup>
+    <Protobuf Include="Models\Protos\application_metrics_v1.proto" GrpcServices="None" />
+  </ItemGroup>  
+  
 </Project>
