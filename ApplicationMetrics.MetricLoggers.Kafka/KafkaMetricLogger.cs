@@ -16,6 +16,9 @@
 
 using System;
 using System.Collections.Generic;
+using Confluent.Kafka;
+using Confluent.SchemaRegistry.Serdes.Protobuf;
+using ApplicationMetrics.MetricLoggers.Kafka.Grpc.GeneratedCode.V1;
 
 namespace ApplicationMetrics.MetricLoggers.Kafka
 {
@@ -24,6 +27,12 @@ namespace ApplicationMetrics.MetricLoggers.Kafka
     /// </summary>
     public class KafkaMetricLogger : MetricLoggerBuffer
     {
+        // TODO:
+        //   Need to take topic name on constructor
+        //   Call all messages in queue in a loop and then await all tasks at end
+        //   How to handle schemas -> remove Confluent.SchemaRegistry package if I don't use
+        //     Avoiding schema -> https://franklinlindemberg.medium.com/using-protobuf-with-apache-kafka-and-without-schema-registry-8535f43a2569
+
         /// <summary>
         ///  Initialises a new instance of the ApplicationMetrics.MetricLoggers.Kafka.KafkaMetricLogger class.
         /// </summary>
@@ -33,7 +42,19 @@ namespace ApplicationMetrics.MetricLoggers.Kafka
         public KafkaMetricLogger(IBufferProcessingStrategy bufferProcessingStrategy, IntervalMetricBaseTimeUnit intervalMetricBaseTimeUnit, Boolean intervalMetricChecking)
              : base(bufferProcessingStrategy, intervalMetricBaseTimeUnit, intervalMetricChecking)
         {
-
+            var producerConfig = new ProducerConfig();
+            // ProducerConfig is a required parameter
+            var producerBuilder = new ProducerBuilder<Null, MetricInstanceUnion>(producerConfig);
+            producerBuilder.SetValueSerializer(new Confluent.SchemaRegistry.Serdes.ProtobufSerializer<MetricInstanceUnion>())
+            using (var producer = producerBuilder.Build())
+            {
+                //producer.ProduceAsync()
+            }
+            MetricInstanceUnion test = new MetricInstanceUnion();
+            test.CountMetricInstance = new CountMetricInstance();
+            test.CountMetricInstance.BaseProperties = new MetricInstanceBase();
+            test.CountMetricInstance.BaseProperties.Category = "Something";
+            test.to
         }
 
         /// <inheritdoc/>
