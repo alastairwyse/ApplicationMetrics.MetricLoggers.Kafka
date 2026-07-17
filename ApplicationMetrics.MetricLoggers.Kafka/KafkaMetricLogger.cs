@@ -54,7 +54,6 @@ namespace ApplicationMetrics.MetricLoggers.Kafka
             test.CountMetricInstance = new CountMetricInstance();
             test.CountMetricInstance.BaseProperties = new MetricInstanceBase();
             test.CountMetricInstance.BaseProperties.Category = "Something";
-            test.to
         }
 
         /// <inheritdoc/>
