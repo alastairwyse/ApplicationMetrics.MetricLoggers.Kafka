@@ -50,6 +50,7 @@ namespace ApplicationMetrics.MetricLoggers.Kafka.Models
             if (eventTime.Kind != DateTimeKind.Utc)
                 throw new ArgumentException($"Parameter '{nameof(eventTime)}' must be represented as UTC.", nameof(eventTime));
 
+            TypeFullName = typeFullName;
             Category = null;
             Name = name;
             Description = description;

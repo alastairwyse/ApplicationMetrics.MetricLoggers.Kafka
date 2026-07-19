@@ -34,7 +34,7 @@ namespace ApplicationMetrics.MetricLoggers.Kafka
         //     Avoiding schema -> https://franklinlindemberg.medium.com/using-protobuf-with-apache-kafka-and-without-schema-registry-8535f43a2569
 
         /// <summary>
-        ///  Initialises a new instance of the ApplicationMetrics.MetricLoggers.Kafka.KafkaMetricLogger class.
+        /// Initialises a new instance of the ApplicationMetrics.MetricLoggers.Kafka.KafkaMetricLogger class.
         /// </summary>
         /// <param name="bufferProcessingStrategy">Object which implements a processing strategy for the buffers (queues).</param>
         /// <param name="intervalMetricBaseTimeUnit">The base time unit to use to log interval metrics.</param>
@@ -45,11 +45,13 @@ namespace ApplicationMetrics.MetricLoggers.Kafka
             var producerConfig = new ProducerConfig();
             // ProducerConfig is a required parameter
             var producerBuilder = new ProducerBuilder<Null, MetricInstanceUnion>(producerConfig);
+            /*
             producerBuilder.SetValueSerializer(new Confluent.SchemaRegistry.Serdes.ProtobufSerializer<MetricInstanceUnion>())
             using (var producer = producerBuilder.Build())
             {
                 //producer.ProduceAsync()
             }
+            */
             MetricInstanceUnion test = new MetricInstanceUnion();
             test.CountMetricInstance = new CountMetricInstance();
             test.CountMetricInstance.BaseProperties = new MetricInstanceBase();

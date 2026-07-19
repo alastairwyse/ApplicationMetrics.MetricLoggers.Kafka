@@ -23,7 +23,7 @@ namespace ApplicationMetrics.MetricLoggers.Kafka
     /// <summary>
     /// Converts between subclasses of <see cref="MetricInstanceBase"/> and their equivalent protocol buffer message.
     /// </summary>
-    internal class MetricInstanceToProtobufMessageConverter
+    public class MetricInstanceToProtobufMessageConverter
     {
         /// <summary>
         /// Initialises a new instance of the ApplicationMetrics.MetricLoggers.Kafka.MetricInstanceToProtobufMessageConverter class.
@@ -117,6 +117,25 @@ namespace ApplicationMetrics.MetricLoggers.Kafka
                     returnMetricInstanceUnion = new Proto.MetricInstanceUnion();
                     returnMetricInstanceUnion.AmountMetricInstance = protobufAmountMetricInstance;
                     return returnMetricInstanceUnion;
+
+                case StatusMetricInstance statusMetricInstance:
+                    var protobufStatusMetricInstance = new Proto.StatusMetricInstance();
+                    protobufStatusMetricInstance.BaseProperties = CreateBaseProperties(metricInstance);
+                    protobufStatusMetricInstance.Value = statusMetricInstance.Value;
+                    returnMetricInstanceUnion = new Proto.MetricInstanceUnion();
+                    returnMetricInstanceUnion.StatusMetricInstance = protobufStatusMetricInstance;
+                    return returnMetricInstanceUnion;
+
+                case IntervalMetricInstance intervalMetricInstance:
+                    var protobufIntervalMetricInstance = new Proto.IntervalMetricInstance();
+                    protobufIntervalMetricInstance.BaseProperties = CreateBaseProperties(metricInstance);
+                    protobufIntervalMetricInstance.Duration = intervalMetricInstance.Duration;
+                    returnMetricInstanceUnion = new Proto.MetricInstanceUnion();
+                    returnMetricInstanceUnion.IntervalMetricInstance = protobufIntervalMetricInstance;
+                    return returnMetricInstanceUnion;
+
+                default:
+                    throw new Exception($"Encountered unhandled metric instance type '{metricInstance.GetType().FullName}.");
             }
         }
 
@@ -130,7 +149,7 @@ namespace ApplicationMetrics.MetricLoggers.Kafka
         protected Proto.MetricInstanceBase CreateBaseProperties(MetricInstanceBase metricInstance)
         {
             var baseProperties = new Proto.MetricInstanceBase();
-            baseProperties.TypeFullName = metricInstance.GetType().FullName;
+            baseProperties.TypeFullName = metricInstance.TypeFullName;
             baseProperties.Category = metricInstance.Category;
             baseProperties.Name = metricInstance.Name;
             baseProperties.Description = metricInstance.Description;
