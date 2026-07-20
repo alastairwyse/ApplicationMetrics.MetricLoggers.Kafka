@@ -66,7 +66,7 @@ namespace ApplicationMetrics.MetricLoggers.Kafka
 
                 case Proto.MetricInstanceUnion.ItemOneofCase.StatusMetricInstance:
                     Proto.StatusMetricInstance protobufStatusMetricInstance = protobufMetricInstance.StatusMetricInstance;
-                    return new AmountMetricInstance
+                    return new StatusMetricInstance
                     (
                         protobufStatusMetricInstance.BaseProperties.TypeFullName,
                         protobufStatusMetricInstance.BaseProperties.Category,
@@ -78,7 +78,7 @@ namespace ApplicationMetrics.MetricLoggers.Kafka
 
                 case Proto.MetricInstanceUnion.ItemOneofCase.IntervalMetricInstance:
                     Proto.IntervalMetricInstance protobufIntervalMetricInstance = protobufMetricInstance.IntervalMetricInstance;
-                    return new AmountMetricInstance
+                    return new IntervalMetricInstance
                     (
                         protobufIntervalMetricInstance.BaseProperties.TypeFullName,
                         protobufIntervalMetricInstance.BaseProperties.Category,
