@@ -18,7 +18,8 @@ using System;
 using System.Collections.Generic;
 using Confluent.Kafka;
 using Confluent.SchemaRegistry.Serdes.Protobuf;
-using ApplicationMetrics.MetricLoggers.Kafka.Grpc.GeneratedCode.V1;
+using Proto = ApplicationMetrics.MetricLoggers.Kafka.Grpc.GeneratedCode.V1;
+using ApplicationMetrics.MetricLoggers.Kafka.Models;
 
 namespace ApplicationMetrics.MetricLoggers.Kafka
 {
@@ -44,13 +45,15 @@ namespace ApplicationMetrics.MetricLoggers.Kafka
         {
             var producerConfig = new ProducerConfig();
             // ProducerConfig is a required parameter
-            var producerBuilder = new ProducerBuilder<Null, MetricInstanceUnion>(producerConfig);
-            /*
-            producerBuilder.SetValueSerializer(new Confluent.SchemaRegistry.Serdes.ProtobufSerializer<MetricInstanceUnion>())
+            var producerBuilder = new ProducerBuilder<Null, MetricInstanceBase>(producerConfig);
+
+            producerBuilder.SetValueSerializer(new MetricInstanceSerializer());
             using (var producer = producerBuilder.Build())
             {
+                producer.Dispose();
                 //producer.ProduceAsync()
             }
+            /*
             */
             MetricInstanceUnion test = new MetricInstanceUnion();
             test.CountMetricInstance = new CountMetricInstance();
