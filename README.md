@@ -1,6 +1,6 @@
 ApplicationMetrics.MetricLoggers.Kafka
 ---
-An implementation of an [ApplicationMetrics](https://github.com/alastairwyse/ApplicationMetrics) [metric logger](https://github.com/alastairwyse/ApplicationMetrics/blob/master/ApplicationMetrics/IMetricLogger.cs) which writes metric and instrumentation events to Kafka broker, and allows consuming the events via a Kafka consumer.
+An implementation of an [ApplicationMetrics](https://github.com/alastairwyse/ApplicationMetrics) [metric logger](https://github.com/alastairwyse/ApplicationMetrics/blob/master/ApplicationMetrics/IMetricLogger.cs) which writes metric and instrumentation events to Kafka cluster, and allows consuming the events via a Kafka consumer.
 
 #### TODO
 * Option to set description blank to reduce space
@@ -12,3 +12,4 @@ An implementation of an [ApplicationMetrics](https://github.com/alastairwyse/App
 * And also put a caveat about null TKey causing metric to arrive out of order (however this happens already in MetricLoggerBase so not losing anything)
 * Possibly need to expose an Action&lt;ProducerBuilder&gt; to allow client config
 * Create a utility class which consumes from Kafka and writes to another IMetricLogger instance
+* If you want to put different metric types on different topics, could use MetricFilter and router to multiple Kafka metric loggers
