@@ -14,10 +14,14 @@
  * limitations under the License.
  */
 
-using ApplicationMetrics.MetricLoggers;
-using Confluent.Kafka;
-using NUnit.Framework;
 using System;
+using System.Collections.Generic;
+using Confluent.Kafka;
+using Confluent.SchemaRegistry;
+using ApplicationMetrics.MetricLoggers;
+using StandardAbstraction;
+using NSubstitute;
+using NUnit.Framework;
 
 namespace ApplicationMetrics.MetricLoggers.Kafka.UnitTests
 {
@@ -26,12 +30,93 @@ namespace ApplicationMetrics.MetricLoggers.Kafka.UnitTests
     /// </summary>
     public class KafkaMetricLoggerTests
     {
+        private String testCategory;
+        private String testTopic;
+        private String testBootstrapServers;
+        private KafkaMetricLogger testKafkaMetricLogger;
+        private IBufferProcessingStrategy mockBufferProcessingStrategy;
+        private IProducer<Null, Models.MetricInstanceBase> mockProducer;
+        private IDateTime mockDateTimeProvider;
+        private IStopwatch mockStopwatch;
+        private IGuidProvider mockGuidProvider;
+
+        [SetUp]
+        protected void SetUp()
+        {
+            testCategory = "TestCategory";
+            testTopic = "TestTopic";
+            testBootstrapServers = "127.0.0.1:9092";
+            mockProducer = Substitute.For<IProducer<Null, Models.MetricInstanceBase>>();
+            testKafkaMetricLogger = new KafkaMetricLogger
+            (
+                testCategory,
+                testTopic, 
+                new ProducerConfig(), 
+                false,
+                mockBufferProcessingStrategy, 
+                IntervalMetricBaseTimeUnit.Nanosecond, 
+                true, 
+                mockProducer, 
+                mockDateTimeProvider, 
+                mockStopwatch, 
+                mockGuidProvider
+            );
+        }
+
+        [TearDown]
+        protected void TearDown()
+        {
+            testKafkaMetricLogger.Dispose();
+        }
+
+        [Test]
+        public void Constructor_CategoryParameterNull()
+        {
+            var e = Assert.Throws<ArgumentException>(delegate
+            {
+                var testKafkaMetricLogger = new KafkaMetricLogger(null, testTopic, testBootstrapServers, true, new SizeLimitedBufferProcessor(1), IntervalMetricBaseTimeUnit.Nanosecond, true);
+            });
+
+            Assert.That(e.Message, Does.StartWith("Parameter 'category' must contain a value."));
+            Assert.AreEqual("category", e.ParamName);
+
+
+            e = Assert.Throws<ArgumentException>(delegate
+            {
+                var testKafkaMetricLogger = new KafkaMetricLogger(null, testTopic, new ProducerConfig(), true, new SizeLimitedBufferProcessor(1), IntervalMetricBaseTimeUnit.Nanosecond, true);
+            });
+
+            Assert.That(e.Message, Does.StartWith("Parameter 'category' must contain a value."));
+            Assert.AreEqual("category", e.ParamName);
+        }
+
+        [Test]
+        public void Constructor_CategoryParameterWhitespace()
+        {
+            var e = Assert.Throws<ArgumentException>(delegate
+            {
+                var testKafkaMetricLogger = new KafkaMetricLogger(" ", testTopic, testBootstrapServers, true, new SizeLimitedBufferProcessor(1), IntervalMetricBaseTimeUnit.Nanosecond, true);
+            });
+
+            Assert.That(e.Message, Does.StartWith("Parameter 'category' must contain a value."));
+            Assert.AreEqual("category", e.ParamName);
+
+
+            e = Assert.Throws<ArgumentException>(delegate
+            {
+                var testKafkaMetricLogger = new KafkaMetricLogger(" ", testTopic, new ProducerConfig(), true, new SizeLimitedBufferProcessor(1), IntervalMetricBaseTimeUnit.Nanosecond, true);
+            });
+
+            Assert.That(e.Message, Does.StartWith("Parameter 'category' must contain a value."));
+            Assert.AreEqual("category", e.ParamName);
+        }
+
         [Test]
         public void Constructor_TopicParameterNull()
         {
             var e = Assert.Throws<ArgumentException>(delegate
             {
-                var testKafkaMetricLogger = new KafkaMetricLogger("", "127.0.0.1:9092", new SizeLimitedBufferProcessor(1), IntervalMetricBaseTimeUnit.Nanosecond, true);
+                var testKafkaMetricLogger = new KafkaMetricLogger(testCategory, null, testBootstrapServers, true, new SizeLimitedBufferProcessor(1), IntervalMetricBaseTimeUnit.Nanosecond, true);
             });
 
             Assert.That(e.Message, Does.StartWith("Parameter 'topic' must contain a value."));
@@ -40,7 +125,7 @@ namespace ApplicationMetrics.MetricLoggers.Kafka.UnitTests
 
             e = Assert.Throws<ArgumentException>(delegate
             {
-                var testKafkaMetricLogger = new KafkaMetricLogger("", new ProducerConfig(), new SizeLimitedBufferProcessor(1), IntervalMetricBaseTimeUnit.Nanosecond, true);
+                var testKafkaMetricLogger = new KafkaMetricLogger(testCategory, null, new ProducerConfig(), true, new SizeLimitedBufferProcessor(1), IntervalMetricBaseTimeUnit.Nanosecond, true);
             });
 
             Assert.That(e.Message, Does.StartWith("Parameter 'topic' must contain a value."));
@@ -52,7 +137,7 @@ namespace ApplicationMetrics.MetricLoggers.Kafka.UnitTests
         {
             var e = Assert.Throws<ArgumentException>(delegate
             {
-                var testKafkaMetricLogger = new KafkaMetricLogger(" ", "127.0.0.1:9092", new SizeLimitedBufferProcessor(1), IntervalMetricBaseTimeUnit.Nanosecond, true);
+                var testKafkaMetricLogger = new KafkaMetricLogger(testCategory, " ", testBootstrapServers, true, new SizeLimitedBufferProcessor(1), IntervalMetricBaseTimeUnit.Nanosecond, true);
             });
 
             Assert.That(e.Message, Does.StartWith("Parameter 'topic' must contain a value."));
@@ -61,7 +146,7 @@ namespace ApplicationMetrics.MetricLoggers.Kafka.UnitTests
 
             e = Assert.Throws<ArgumentException>(delegate
             {
-                var testKafkaMetricLogger = new KafkaMetricLogger(" ", new ProducerConfig(), new SizeLimitedBufferProcessor(1), IntervalMetricBaseTimeUnit.Nanosecond, true);
+                var testKafkaMetricLogger = new KafkaMetricLogger(testCategory, " ", new ProducerConfig(), true, new SizeLimitedBufferProcessor(1), IntervalMetricBaseTimeUnit.Nanosecond, true);
             });
 
             Assert.That(e.Message, Does.StartWith("Parameter 'topic' must contain a value."));
@@ -73,7 +158,7 @@ namespace ApplicationMetrics.MetricLoggers.Kafka.UnitTests
         {
             var e = Assert.Throws<ArgumentException>(delegate
             {
-                var testKafkaMetricLogger = new KafkaMetricLogger("testTopic", (String)null, new SizeLimitedBufferProcessor(1), IntervalMetricBaseTimeUnit.Nanosecond, true);
+                var testKafkaMetricLogger = new KafkaMetricLogger(testCategory, testTopic, (String)null, true, new SizeLimitedBufferProcessor(1), IntervalMetricBaseTimeUnit.Nanosecond, true);
             });
 
             Assert.That(e.Message, Does.StartWith("Parameter 'bootstrapServers' must contain a value."));
@@ -85,11 +170,17 @@ namespace ApplicationMetrics.MetricLoggers.Kafka.UnitTests
         {
             var e = Assert.Throws<ArgumentException>(delegate
             {
-                var testKafkaMetricLogger = new KafkaMetricLogger("testTopic", " ", new SizeLimitedBufferProcessor(1), IntervalMetricBaseTimeUnit.Nanosecond, true);
+                var testKafkaMetricLogger = new KafkaMetricLogger(testCategory, testTopic, " ", true, new SizeLimitedBufferProcessor(1), IntervalMetricBaseTimeUnit.Nanosecond, true);
             });
 
             Assert.That(e.Message, Does.StartWith("Parameter 'bootstrapServers' must contain a value."));
             Assert.AreEqual("bootstrapServers", e.ParamName);
+        }
+
+        [Test]
+        public void ProcessAmountMetricEvents()
+        {
+            throw new NotImplementedException();
         }
     }
 }

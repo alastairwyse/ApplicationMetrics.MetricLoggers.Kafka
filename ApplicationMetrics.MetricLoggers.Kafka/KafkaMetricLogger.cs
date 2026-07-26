@@ -35,6 +35,8 @@ namespace ApplicationMetrics.MetricLoggers.Kafka
         //   How to handle schemas -> remove Confluent.SchemaRegistry package if I don't use
         //     Avoiding schema -> https://franklinlindemberg.medium.com/using-protobuf-with-apache-kafka-and-without-schema-registry-8535f43a2569
 
+        /// <summary>The category to log all metrics under.</summary>
+        protected String category;
         /// <summary>The kafka topic to write metrics to.</summary>
         protected String topic;
         /// <summary>The <see cref="IProducer{TKey, TValue}"/> instance to use to send metric events.</summary>
@@ -45,18 +47,21 @@ namespace ApplicationMetrics.MetricLoggers.Kafka
         /// <summary>
         /// Initialises a new instance of the ApplicationMetrics.MetricLoggers.Kafka.KafkaMetricLogger class.
         /// </summary>
+        /// <param name="category">The category to log all metrics under.</param>
         /// <param name="topic">The kafka topic to write metrics to.</param>
         /// <param name="bootstrapServers">A list of host/port pairs used to establish the initial connection to the Kafka cluster (see https://docs.confluent.io/platform/current/installation/configuration/producer-configs.html#bootstrap-servers for examples).</param>
         /// <param name="logMetricDescriptionAsBlankString">Whether metric's 'description' fields should be sent as a blank strings (and thereby reducing the message sizes).</param>
         /// <param name="bufferProcessingStrategy">Object which implements a processing strategy for the buffers (queues).</param>
         /// <param name="intervalMetricBaseTimeUnit">The base time unit to use to log interval metrics.</param>
         /// <param name="intervalMetricChecking">Specifies whether an exception should be thrown if the correct order of interval metric logging is not followed (e.g. End() method called before Begin()).  Note that this parameter only has an effect when running in 'non-interleaved' mode.</param>
-        public KafkaMetricLogger(String topic, String bootstrapServers, Boolean logMetricDescriptionAsBlankString, IBufferProcessingStrategy bufferProcessingStrategy, IntervalMetricBaseTimeUnit intervalMetricBaseTimeUnit, Boolean intervalMetricChecking)
+        public KafkaMetricLogger(String category, String topic, String bootstrapServers, Boolean logMetricDescriptionAsBlankString, IBufferProcessingStrategy bufferProcessingStrategy, IntervalMetricBaseTimeUnit intervalMetricBaseTimeUnit, Boolean intervalMetricChecking)
              : base(bufferProcessingStrategy, intervalMetricBaseTimeUnit, intervalMetricChecking)
         {
+            ThrowExceptionIfStringParameterNullOrWhitespace(nameof(category), category);
             ThrowExceptionIfStringParameterNullOrWhitespace(nameof(topic), topic);
             ThrowExceptionIfStringParameterNullOrWhitespace(nameof(bootstrapServers), bootstrapServers);
 
+            this.category = category;
             this.topic = topic;
             this.logMetricDescriptionAsBlankString = logMetricDescriptionAsBlankString;
             var producerConfig = new ProducerConfig();
@@ -69,22 +74,65 @@ namespace ApplicationMetrics.MetricLoggers.Kafka
         /// <summary>
         /// Initialises a new instance of the ApplicationMetrics.MetricLoggers.Kafka.KafkaMetricLogger class.
         /// </summary>
+        /// <param name="category">The category to log all metrics under.</param>
         /// <param name="topic">The kafka topic to write metrics to.</param>
         /// <param name="producerConfig">The configuration to apply to the underlying <see cref="IProducer{TKey, TValue}"/>.</param>
         /// <param name="logMetricDescriptionAsBlankString">Whether metric's 'description' fields should be sent as a blank strings (and thereby reducing the message sizes).</param>
         /// <param name="bufferProcessingStrategy">Object which implements a processing strategy for the buffers (queues).</param>
         /// <param name="intervalMetricBaseTimeUnit">The base time unit to use to log interval metrics.</param>
         /// <param name="intervalMetricChecking">Specifies whether an exception should be thrown if the correct order of interval metric logging is not followed (e.g. End() method called before Begin()).  Note that this parameter only has an effect when running in 'non-interleaved' mode.</param>
-        public KafkaMetricLogger(String topic, ProducerConfig producerConfig, Boolean logMetricDescriptionAsBlankString, IBufferProcessingStrategy bufferProcessingStrategy, IntervalMetricBaseTimeUnit intervalMetricBaseTimeUnit, Boolean intervalMetricChecking)
+        public KafkaMetricLogger(String category, String topic, ProducerConfig producerConfig, Boolean logMetricDescriptionAsBlankString, IBufferProcessingStrategy bufferProcessingStrategy, IntervalMetricBaseTimeUnit intervalMetricBaseTimeUnit, Boolean intervalMetricChecking)
              : base(bufferProcessingStrategy, intervalMetricBaseTimeUnit, intervalMetricChecking)
         {
+            ThrowExceptionIfStringParameterNullOrWhitespace(nameof(category), category);
             ThrowExceptionIfStringParameterNullOrWhitespace(nameof(topic), topic);
 
+            this.category = category;
             this.topic = topic;
             this.logMetricDescriptionAsBlankString = logMetricDescriptionAsBlankString;
             var producerBuilder = new ProducerBuilder<Null, Models.MetricInstanceBase>(producerConfig);
             producerBuilder.SetValueSerializer(new MetricInstanceSerializer());
             producer = producerBuilder.Build();
+        }
+
+        /// <summary>
+        /// Initialises a new instance of the ApplicationMetrics.MetricLoggers.Kafka.KafkaMetricLogger class.
+        /// </summary>
+        /// <param name="category">The category to log all metrics under.</param>
+        /// <param name="topic">The kafka topic to write metrics to.</param>
+        /// <param name="producerConfig">The configuration to apply to the underlying <see cref="IProducer{TKey, TValue}"/>.</param>
+        /// <param name="logMetricDescriptionAsBlankString">Whether metric's 'description' fields should be sent as a blank strings (and thereby reducing the message sizes).</param>
+        /// <param name="bufferProcessingStrategy">Object which implements a processing strategy for the buffers (queues).</param>
+        /// <param name="intervalMetricBaseTimeUnit">The base time unit to use to log interval metrics.</param>
+        /// <param name="intervalMetricChecking">Specifies whether an exception should be thrown if the correct order of interval metric logging is not followed (e.g. End() method called before Begin()).  Note that this parameter only has an effect when running in 'non-interleaved' mode.</param>
+        /// <param name="producer">A mock <see cref="IProducer{TKey, TValue}"/>.</param>
+        /// <param name="dateTime">A mock <see cref="StandardAbstraction.IDateTime"/>.</param>
+        /// <param name="stopwatch">A mock <see cref="StandardAbstraction.IStopwatch"/>.</param>
+        /// <param name="guidProvider">A mock <see cref="IGuidProvider"/>.</param>
+        /// <remarks>This constructor is included to facilitate unit testing.</remarks>
+        public KafkaMetricLogger
+        (
+            String category,
+            String topic, 
+            ProducerConfig producerConfig, 
+            Boolean logMetricDescriptionAsBlankString, 
+            IBufferProcessingStrategy bufferProcessingStrategy, 
+            IntervalMetricBaseTimeUnit intervalMetricBaseTimeUnit, 
+            Boolean intervalMetricChecking, 
+            IProducer<Null, Models.MetricInstanceBase> producer, 
+            StandardAbstraction.IDateTime dateTime,
+            StandardAbstraction.IStopwatch stopwatch, 
+            IGuidProvider guidProvider
+        )
+             : base(bufferProcessingStrategy, intervalMetricBaseTimeUnit, intervalMetricChecking, dateTime, stopwatch, guidProvider)
+        {
+            ThrowExceptionIfStringParameterNullOrWhitespace(nameof(category), category);
+            ThrowExceptionIfStringParameterNullOrWhitespace(nameof(topic), topic);
+
+            this.category = category;
+            this.topic = topic;
+            this.logMetricDescriptionAsBlankString = logMetricDescriptionAsBlankString;
+            this.producer = producer;
         }
 
         /// <inheritdoc/>
@@ -97,6 +145,7 @@ namespace ApplicationMetrics.MetricLoggers.Kafka
                 message.Value = new Models.AmountMetricInstance
                 (
                     currentAmountMetricEvent.MetricType.FullName,
+                    category,
                     currentAmountMetricEvent.Metric.Name,
                     GetMetricDescriptionValue(currentAmountMetricEvent),
                     currentAmountMetricEvent.EventTime,
@@ -104,7 +153,14 @@ namespace ApplicationMetrics.MetricLoggers.Kafka
                 );
                 produceTasks.Add(producer.ProduceAsync(topic, message));
             }
-            Task.WhenAll(produceTasks).Wait();
+            try
+            {
+                Task.WhenAll(produceTasks).Wait();
+            }
+            catch (Exception e)
+            {
+                throw new Exception("Failed to send amount metrics to kafka cluster via producer.", e);
+            }
         }
 
         /// <inheritdoc/>
