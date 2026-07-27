@@ -166,19 +166,84 @@ namespace ApplicationMetrics.MetricLoggers.Kafka
         /// <inheritdoc/>
         protected override void ProcessCountMetricEvents(Queue<CountMetricEventInstance> countMetricEvents)
         {
-            throw new NotImplementedException();
+            var produceTasks = new List<Task<DeliveryResult<Null, Models.MetricInstanceBase>>>();
+            foreach (CountMetricEventInstance currentCountMetricEvent in countMetricEvents)
+            {
+                var message = new Message<Null, Models.MetricInstanceBase>();
+                message.Value = new Models.CountMetricInstance
+                (
+                    currentCountMetricEvent.MetricType.FullName,
+                    category,
+                    currentCountMetricEvent.Metric.Name,
+                    GetMetricDescriptionValue(currentCountMetricEvent),
+                    currentCountMetricEvent.EventTime
+                );
+                produceTasks.Add(producer.ProduceAsync(topic, message));
+            }
+            try
+            {
+                Task.WhenAll(produceTasks).Wait();
+            }
+            catch (Exception e)
+            {
+                throw new Exception("Failed to send count metrics to kafka cluster via producer.", e);
+            }
         }
 
         /// <inheritdoc/>
         protected override void ProcessIntervalMetricEvents(Queue<Tuple<IntervalMetricEventInstance, Int64>> intervalMetricEventsAndDurations)
         {
-            throw new NotImplementedException();
+            var produceTasks = new List<Task<DeliveryResult<Null, Models.MetricInstanceBase>>>();
+            foreach (Tuple<IntervalMetricEventInstance, Int64> currentIntervalMetricEvent in intervalMetricEventsAndDurations)
+            {
+                var message = new Message<Null, Models.MetricInstanceBase>();
+                message.Value = new Models.IntervalMetricInstance
+                (
+                    currentIntervalMetricEvent.Item1.MetricType.FullName,
+                    category,
+                    currentIntervalMetricEvent.Item1.Metric.Name,
+                    GetMetricDescriptionValue(currentIntervalMetricEvent.Item1),
+                    currentIntervalMetricEvent.Item1.EventTime,
+                    currentIntervalMetricEvent.Item2
+                );
+                produceTasks.Add(producer.ProduceAsync(topic, message));
+            }
+            try
+            {
+                Task.WhenAll(produceTasks).Wait();
+            }
+            catch (Exception e)
+            {
+                throw new Exception("Failed to send interval metrics to kafka cluster via producer.", e);
+            }
         }
 
         /// <inheritdoc/>
         protected override void ProcessStatusMetricEvents(Queue<StatusMetricEventInstance> statusMetricEvents)
         {
-            throw new NotImplementedException();
+            var produceTasks = new List<Task<DeliveryResult<Null, Models.MetricInstanceBase>>>();
+            foreach (StatusMetricEventInstance currentStatusMetricEvent in statusMetricEvents)
+            {
+                var message = new Message<Null, Models.MetricInstanceBase>();
+                message.Value = new Models.StatusMetricInstance
+                (
+                    currentStatusMetricEvent.MetricType.FullName,
+                    category,
+                    currentStatusMetricEvent.Metric.Name,
+                    GetMetricDescriptionValue(currentStatusMetricEvent),
+                    currentStatusMetricEvent.EventTime,
+                    currentStatusMetricEvent.Value
+                );
+                produceTasks.Add(producer.ProduceAsync(topic, message));
+            }
+            try
+            {
+                Task.WhenAll(produceTasks).Wait();
+            }
+            catch (Exception e)
+            {
+                throw new Exception("Failed to send status metrics to kafka cluster via producer.", e);
+            }
         }
 
         protected void ThrowExceptionIfStringParameterNullOrWhitespace(String parameterName, String parameterValue)
