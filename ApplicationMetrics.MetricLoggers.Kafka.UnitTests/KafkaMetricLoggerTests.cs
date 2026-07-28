@@ -16,12 +16,13 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using Confluent.Kafka;
 using Confluent.SchemaRegistry;
-using ApplicationMetrics.MetricLoggers;
 using StandardAbstraction;
-using NSubstitute;
+using ApplicationMetrics.MetricLoggers;
 using NUnit.Framework;
+using NSubstitute;
 
 namespace ApplicationMetrics.MetricLoggers.Kafka.UnitTests
 {
@@ -33,7 +34,7 @@ namespace ApplicationMetrics.MetricLoggers.Kafka.UnitTests
         private String testCategory;
         private String testTopic;
         private String testBootstrapServers;
-        private KafkaMetricLogger testKafkaMetricLogger;
+        private KafkaMetricLoggerWithProtectedMembers testKafkaMetricLogger;
         private IBufferProcessingStrategy mockBufferProcessingStrategy;
         private IProducer<Null, Models.MetricInstanceBase> mockProducer;
         private IDateTime mockDateTimeProvider;
@@ -46,19 +47,23 @@ namespace ApplicationMetrics.MetricLoggers.Kafka.UnitTests
             testCategory = "TestCategory";
             testTopic = "TestTopic";
             testBootstrapServers = "127.0.0.1:9092";
+            mockBufferProcessingStrategy = Substitute.For<IBufferProcessingStrategy>();
             mockProducer = Substitute.For<IProducer<Null, Models.MetricInstanceBase>>();
-            testKafkaMetricLogger = new KafkaMetricLogger
+            mockDateTimeProvider = Substitute.For<IDateTime>();
+            mockStopwatch = Substitute.For<IStopwatch>();
+            mockGuidProvider = Substitute.For<IGuidProvider>();
+            testKafkaMetricLogger = new KafkaMetricLoggerWithProtectedMembers
             (
                 testCategory,
-                testTopic, 
-                new ProducerConfig(), 
+                testTopic,
+                new ProducerConfig(),
                 false,
-                mockBufferProcessingStrategy, 
-                IntervalMetricBaseTimeUnit.Nanosecond, 
-                true, 
-                mockProducer, 
-                mockDateTimeProvider, 
-                mockStopwatch, 
+                mockBufferProcessingStrategy,
+                IntervalMetricBaseTimeUnit.Nanosecond,
+                true,
+                mockProducer,
+                mockDateTimeProvider,
+                mockStopwatch,
                 mockGuidProvider
             );
         }
@@ -180,7 +185,173 @@ namespace ApplicationMetrics.MetricLoggers.Kafka.UnitTests
         [Test]
         public void ProcessAmountMetricEvents()
         {
-            throw new NotImplementedException();
+            DiskBytesRead testAmountMetric = new();
+            Int64 testAmount = 1234;
+            System.DateTime testEventTime = CreateDataTimeFromString("2026-06-28 22:32:01.0020000");
+            List<String> capturedTopics = new();
+            List<Tuple<AmountMetric, Int64, System.DateTime>> testAmountMetricEvents = new()
+            {
+                new Tuple<AmountMetric, Int64, System.DateTime>(testAmountMetric, testAmount, testEventTime)
+            };
+            List<Models.MetricInstanceBase> capturedMessages = new();
+            Action<String> topicArgumentAction = (String topic) => { capturedTopics.Add(topic); };
+            Action<Message<Null, Models.MetricInstanceBase>> messageArgumentAction = (Message<Null, Models.MetricInstanceBase> message) => { capturedMessages.Add(message.Value); };
+            mockProducer.ProduceAsync(Arg.Do<String>(topicArgumentAction), Arg.Do<Message<Null, Models.MetricInstanceBase>>(messageArgumentAction));
+
+            testKafkaMetricLogger.ProcessAmountMetricEvents(testAmountMetricEvents);
+
+            Assert.AreEqual(1, capturedTopics.Count);
+            Assert.AreEqual(testTopic, capturedTopics[0]);
+            Assert.AreEqual(1, capturedMessages.Count);
+            Assert.IsAssignableFrom<Models.AmountMetricInstance>(capturedMessages[0]);
+            Assert.AreEqual(typeof(DiskBytesRead).FullName, capturedMessages[0].TypeFullName);
+            Assert.AreEqual(testCategory, capturedMessages[0].Category);
+            Assert.AreEqual(testAmountMetric.Name, capturedMessages[0].Name);
+            Assert.AreEqual(testAmountMetric.Description, capturedMessages[0].Description);
+            Assert.AreEqual(testEventTime, capturedMessages[0].EventTime);
+            Assert.AreEqual(testAmount, ((Models.AmountMetricInstance)capturedMessages[0]).Amount);
+
+
+            testKafkaMetricLogger = new KafkaMetricLoggerWithProtectedMembers
+            (
+                testCategory,
+                testTopic,
+                new ProducerConfig(),
+                true, // logMetricDescriptionAsBlankString
+                mockBufferProcessingStrategy,
+                IntervalMetricBaseTimeUnit.Nanosecond,
+                true,
+                mockProducer,
+                mockDateTimeProvider,
+                mockStopwatch,
+                mockGuidProvider
+            );
+            capturedTopics.Clear();
+            capturedMessages.Clear();
+
+            testKafkaMetricLogger.ProcessAmountMetricEvents(testAmountMetricEvents);
+
+            Assert.AreEqual(1, capturedTopics.Count);
+            Assert.AreEqual(testTopic, capturedTopics[0]);
+            Assert.AreEqual(1, capturedMessages.Count);
+            Assert.IsAssignableFrom<Models.AmountMetricInstance>(capturedMessages[0]);
+            Assert.AreEqual(typeof(DiskBytesRead).FullName, capturedMessages[0].TypeFullName);
+            Assert.AreEqual(testCategory, capturedMessages[0].Category);
+            Assert.AreEqual(testAmountMetric.Name, capturedMessages[0].Name);
+            Assert.AreEqual("", capturedMessages[0].Description);
+            Assert.AreEqual(testEventTime, capturedMessages[0].EventTime);
+            Assert.AreEqual(testAmount, ((Models.AmountMetricInstance)capturedMessages[0]).Amount);
         }
+
+        #region Private/Protected Methods
+
+        /// <summary>
+        /// Creates a DateTime from the specified yyyy-MM-dd HH:mm:ss format string.
+        /// </summary>
+        /// <param name="stringifiedDateTime">The stringified date/time to convert.</param>
+        /// <returns>A DateTime.</returns>
+        protected System.DateTime CreateDataTimeFromString(String stringifiedDateTime)
+        {
+            System.DateTime returnDateTime = System.DateTime.ParseExact(stringifiedDateTime, "yyyy-MM-dd HH:mm:ss.fffffff", DateTimeFormatInfo.InvariantInfo);
+
+            return System.DateTime.SpecifyKind(returnDateTime, DateTimeKind.Utc);
+        }
+
+        #endregion
+
+        #region Nested Classes
+
+        /// <summary>
+        /// Version of the KafkaMetricLogger class where private and protected methods are exposed as public so that they can be unit tested.
+        /// </summary>
+        private class KafkaMetricLoggerWithProtectedMembers : KafkaMetricLogger
+        {
+            /// <summary>
+            /// Initialises a new instance of the ApplicationMetrics.MetricLoggers.Kafka.UnitTests.KafkaMetricLoggerTests+KafkaMetricLoggerWithProtectedMembers class.
+            /// </summary>
+            /// <param name="category">The category to log all metrics under.</param>
+            /// <param name="topic">The kafka topic to write metrics to.</param>
+            /// <param name="producerConfig">The configuration to apply to the underlying <see cref="IProducer{TKey, TValue}"/>.</param>
+            /// <param name="logMetricDescriptionAsBlankString">Whether metric's 'description' fields should be sent as a blank strings (and thereby reducing the message sizes).</param>
+            /// <param name="bufferProcessingStrategy">Object which implements a processing strategy for the buffers (queues).</param>
+            /// <param name="intervalMetricBaseTimeUnit">The base time unit to use to log interval metrics.</param>
+            /// <param name="intervalMetricChecking">Specifies whether an exception should be thrown if the correct order of interval metric logging is not followed (e.g. End() method called before Begin()).  Note that this parameter only has an effect when running in 'non-interleaved' mode.</param>
+            /// <param name="producer">A mock <see cref="IProducer{TKey, TValue}"/>.</param>
+            /// <param name="dateTime">A mock <see cref="StandardAbstraction.IDateTime"/>.</param>
+            /// <param name="stopwatch">A mock <see cref="StandardAbstraction.IStopwatch"/>.</param>
+            /// <param name="guidProvider">A mock <see cref="IGuidProvider"/>.</param>
+            public KafkaMetricLoggerWithProtectedMembers
+            (
+                String category,
+                String topic,
+                ProducerConfig producerConfig,
+                Boolean logMetricDescriptionAsBlankString,
+                IBufferProcessingStrategy bufferProcessingStrategy,
+                IntervalMetricBaseTimeUnit intervalMetricBaseTimeUnit,
+                Boolean intervalMetricChecking,
+                IProducer<Null, Models.MetricInstanceBase> producer,
+                StandardAbstraction.IDateTime dateTime,
+                StandardAbstraction.IStopwatch stopwatch,
+                IGuidProvider guidProvider
+            )
+                 : base
+            (
+                category,
+                topic,
+                producerConfig,
+                logMetricDescriptionAsBlankString,
+                bufferProcessingStrategy,
+                intervalMetricBaseTimeUnit,
+                intervalMetricChecking,
+                producer,
+                dateTime,
+                stopwatch,
+                guidProvider
+            )
+            {
+            }
+
+            public void ProcessCountMetricEvents(IEnumerable<Tuple<CountMetric, System.DateTime>> countMetricEvents)
+            {
+                var countMetricEventsQueue = new Queue<CountMetricEventInstance>();
+                foreach (Tuple<CountMetric, System.DateTime> currentCountMetricEvent in countMetricEvents)
+                {
+                    countMetricEventsQueue.Enqueue(new CountMetricEventInstance(currentCountMetricEvent.Item1, currentCountMetricEvent.Item2));
+                }
+                ProcessCountMetricEvents(countMetricEventsQueue);
+            }
+
+            public void ProcessAmountMetricEvents(IEnumerable<Tuple<AmountMetric, Int64, System.DateTime>> amountMetricEvents)
+            {
+                var amountMetricEventsQueue = new Queue<AmountMetricEventInstance>();
+                foreach (Tuple<AmountMetric, Int64, System.DateTime> currentAmountMetricEvent in amountMetricEvents)
+                {
+                    amountMetricEventsQueue.Enqueue(new AmountMetricEventInstance(currentAmountMetricEvent.Item1, currentAmountMetricEvent.Item2, currentAmountMetricEvent.Item3));
+                }
+                ProcessAmountMetricEvents(amountMetricEventsQueue);
+            }
+
+            public void ProcessStatusMetricEvents(IEnumerable<Tuple<StatusMetric, Int64, System.DateTime>> statusMetricEvents)
+            {
+                var statusMetricEventsQueue = new Queue<StatusMetricEventInstance>();
+                foreach (Tuple<StatusMetric, Int64, System.DateTime> currentStatusMetricEvent in statusMetricEvents)
+                {
+                    statusMetricEventsQueue.Enqueue(new StatusMetricEventInstance(currentStatusMetricEvent.Item1, currentStatusMetricEvent.Item2, currentStatusMetricEvent.Item3));
+                }
+                ProcessStatusMetricEvents(statusMetricEventsQueue);
+            }
+
+            public void ProcessIntervalMetricEvents(IEnumerable<Tuple<IntervalMetric, Int64, System.DateTime>> intervalMetricEvents)
+            {
+                var intervalMetricEventsQueue = new Queue<Tuple<IntervalMetricEventInstance, Int64>>();
+                foreach (Tuple<IntervalMetric, Int64, System.DateTime> currentIntervalMetricEvent in intervalMetricEvents)
+                {
+                    intervalMetricEventsQueue.Enqueue(new Tuple<IntervalMetricEventInstance, Int64>(new IntervalMetricEventInstance(currentIntervalMetricEvent.Item1, IntervalMetricEventTimePoint.Start, currentIntervalMetricEvent.Item3), currentIntervalMetricEvent.Item2));
+                }
+                ProcessIntervalMetricEvents(intervalMetricEventsQueue);
+            }
+        }
+
+        #endregion
     }
 }
