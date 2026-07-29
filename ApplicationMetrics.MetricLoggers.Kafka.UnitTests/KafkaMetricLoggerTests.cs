@@ -183,6 +183,12 @@ namespace ApplicationMetrics.MetricLoggers.Kafka.UnitTests
         }
 
         [Test]
+        public void ProcessAmountMetricEvents_ExceptionSendingViaProducer()
+        {
+            throw new NotImplementedException();
+        }
+
+        [Test]
         public void ProcessAmountMetricEvents()
         {
             DiskBytesRead testAmountMetric = new();
@@ -212,6 +218,7 @@ namespace ApplicationMetrics.MetricLoggers.Kafka.UnitTests
             Assert.AreEqual(testAmount, ((Models.AmountMetricInstance)capturedMessages[0]).Amount);
 
 
+            testKafkaMetricLogger.Dispose();
             testKafkaMetricLogger = new KafkaMetricLoggerWithProtectedMembers
             (
                 testCategory,
@@ -241,6 +248,223 @@ namespace ApplicationMetrics.MetricLoggers.Kafka.UnitTests
             Assert.AreEqual("", capturedMessages[0].Description);
             Assert.AreEqual(testEventTime, capturedMessages[0].EventTime);
             Assert.AreEqual(testAmount, ((Models.AmountMetricInstance)capturedMessages[0]).Amount);
+        }
+
+        [Test]
+        public void ProcessCountMetricEvents_ExceptionSendingViaProducer()
+        {
+            DiskReadOperation testCountMetric = new();
+            System.DateTime testEventTime = CreateDataTimeFromString("2026-06-29 21:22:03.0040000");
+            List<String> capturedTopics = new();
+            List<Tuple<CountMetric, System.DateTime>> testCountMetricEvents = new()
+            {
+                new Tuple<CountMetric, System.DateTime>(testCountMetric, testEventTime)
+            };
+            var mockException = new Exception("Mock exception");
+            mockProducer.When((producer) => producer.ProduceAsync(Arg.Any<String>(), Arg.Any<Message<Null, Models.MetricInstanceBase>>())).Do((callInfo) => throw mockException);
+
+            var e = Assert.Throws<Exception>(delegate
+            {
+                testKafkaMetricLogger.ProcessCountMetricEvents(testCountMetricEvents);
+            });
+
+            Assert.That(e.Message, Does.StartWith($"Failed to send amount metrics to kafka cluster via producer."));
+            Assert.That(e.InnerException == mockException);
+        }
+
+        [Test]
+        public void ProcessCountMetricEvents()
+        {
+            DiskReadOperation testCountMetric = new();
+            System.DateTime testEventTime = CreateDataTimeFromString("2026-06-29 21:22:03.0040000");
+            List<String> capturedTopics = new();
+            List<Tuple<CountMetric, System.DateTime>> testCountMetricEvents = new()
+            {
+                new Tuple<CountMetric, System.DateTime>(testCountMetric, testEventTime)
+            };
+            List<Models.MetricInstanceBase> capturedMessages = new();
+            Action<String> topicArgumentAction = (String topic) => { capturedTopics.Add(topic); };
+            Action<Message<Null, Models.MetricInstanceBase>> messageArgumentAction = (Message<Null, Models.MetricInstanceBase> message) => { capturedMessages.Add(message.Value); };
+            mockProducer.ProduceAsync(Arg.Do<String>(topicArgumentAction), Arg.Do<Message<Null, Models.MetricInstanceBase>>(messageArgumentAction));
+
+            testKafkaMetricLogger.ProcessCountMetricEvents(testCountMetricEvents);
+
+            Assert.AreEqual(1, capturedTopics.Count);
+            Assert.AreEqual(testTopic, capturedTopics[0]);
+            Assert.AreEqual(1, capturedMessages.Count);
+            Assert.IsAssignableFrom<Models.CountMetricInstance>(capturedMessages[0]);
+            Assert.AreEqual(typeof(DiskReadOperation).FullName, capturedMessages[0].TypeFullName);
+            Assert.AreEqual(testCategory, capturedMessages[0].Category);
+            Assert.AreEqual(testCountMetric.Name, capturedMessages[0].Name);
+            Assert.AreEqual(testCountMetric.Description, capturedMessages[0].Description);
+            Assert.AreEqual(testEventTime, capturedMessages[0].EventTime);
+
+
+            testKafkaMetricLogger.Dispose();
+            testKafkaMetricLogger = new KafkaMetricLoggerWithProtectedMembers
+            (
+                testCategory,
+                testTopic,
+                new ProducerConfig(),
+                true, // logMetricDescriptionAsBlankString
+                mockBufferProcessingStrategy,
+                IntervalMetricBaseTimeUnit.Nanosecond,
+                true,
+                mockProducer,
+                mockDateTimeProvider,
+                mockStopwatch,
+                mockGuidProvider
+            );
+            capturedTopics.Clear();
+            capturedMessages.Clear();
+
+            testKafkaMetricLogger.ProcessCountMetricEvents(testCountMetricEvents);
+
+            Assert.AreEqual(1, capturedTopics.Count);
+            Assert.AreEqual(testTopic, capturedTopics[0]);
+            Assert.AreEqual(1, capturedMessages.Count);
+            Assert.IsAssignableFrom<Models.CountMetricInstance>(capturedMessages[0]);
+            Assert.AreEqual(typeof(DiskReadOperation).FullName, capturedMessages[0].TypeFullName);
+            Assert.AreEqual(testCategory, capturedMessages[0].Category);
+            Assert.AreEqual(testCountMetric.Name, capturedMessages[0].Name);
+            Assert.AreEqual("", capturedMessages[0].Description);
+            Assert.AreEqual(testEventTime, capturedMessages[0].EventTime);
+        }
+
+        [Test]
+        public void ProcessStatusMetricEvents_ExceptionSendingViaProducer()
+        {
+            throw new NotImplementedException();
+        }
+
+        [Test]
+        public void ProcessStatusMetricEvents()
+        {
+            AvailableMemory testStatusMetric = new();
+            Int64 testValue = 123000;
+            System.DateTime testEventTime = CreateDataTimeFromString("2026-06-29 21:25:06.0070000");
+            List<String> capturedTopics = new();
+            List<Tuple<StatusMetric, Int64, System.DateTime>> testStatusMetricEvents = new()
+            {
+                new Tuple<StatusMetric, Int64, System.DateTime>(testStatusMetric, testValue, testEventTime)
+            };
+            List<Models.MetricInstanceBase> capturedMessages = new();
+            Action<String> topicArgumentAction = (String topic) => { capturedTopics.Add(topic); };
+            Action<Message<Null, Models.MetricInstanceBase>> messageArgumentAction = (Message<Null, Models.MetricInstanceBase> message) => { capturedMessages.Add(message.Value); };
+            mockProducer.ProduceAsync(Arg.Do<String>(topicArgumentAction), Arg.Do<Message<Null, Models.MetricInstanceBase>>(messageArgumentAction));
+
+            testKafkaMetricLogger.ProcessStatusMetricEvents(testStatusMetricEvents);
+
+            Assert.AreEqual(1, capturedTopics.Count);
+            Assert.AreEqual(testTopic, capturedTopics[0]);
+            Assert.AreEqual(1, capturedMessages.Count);
+            Assert.IsAssignableFrom<Models.StatusMetricInstance>(capturedMessages[0]);
+            Assert.AreEqual(typeof(AvailableMemory).FullName, capturedMessages[0].TypeFullName);
+            Assert.AreEqual(testCategory, capturedMessages[0].Category);
+            Assert.AreEqual(testStatusMetric.Name, capturedMessages[0].Name);
+            Assert.AreEqual(testStatusMetric.Description, capturedMessages[0].Description);
+            Assert.AreEqual(testEventTime, capturedMessages[0].EventTime);
+            Assert.AreEqual(testValue, ((Models.StatusMetricInstance)capturedMessages[0]).Value);
+
+
+            testKafkaMetricLogger.Dispose();
+            testKafkaMetricLogger = new KafkaMetricLoggerWithProtectedMembers
+            (
+                testCategory,
+                testTopic,
+                new ProducerConfig(),
+                true, // logMetricDescriptionAsBlankString
+                mockBufferProcessingStrategy,
+                IntervalMetricBaseTimeUnit.Nanosecond,
+                true,
+                mockProducer,
+                mockDateTimeProvider,
+                mockStopwatch,
+                mockGuidProvider
+            );
+            capturedTopics.Clear();
+            capturedMessages.Clear();
+
+            testKafkaMetricLogger.ProcessStatusMetricEvents(testStatusMetricEvents);
+
+            Assert.AreEqual(1, capturedTopics.Count);
+            Assert.AreEqual(testTopic, capturedTopics[0]);
+            Assert.AreEqual(1, capturedMessages.Count);
+            Assert.IsAssignableFrom<Models.StatusMetricInstance>(capturedMessages[0]);
+            Assert.AreEqual(typeof(AvailableMemory).FullName, capturedMessages[0].TypeFullName);
+            Assert.AreEqual(testCategory, capturedMessages[0].Category);
+            Assert.AreEqual(testStatusMetric.Name, capturedMessages[0].Name);
+            Assert.AreEqual("", capturedMessages[0].Description);
+            Assert.AreEqual(testEventTime, capturedMessages[0].EventTime);
+            Assert.AreEqual(testValue, ((Models.StatusMetricInstance)capturedMessages[0]).Value);
+        }
+
+        [Test]
+        public void ProcessIntervalMetricEvents_ExceptionSendingViaProducer()
+        {
+            throw new NotImplementedException();
+        }
+
+        [Test]
+        public void ProcessIntervalMetricEvents()
+        {
+            MessageReceiveTime testIntervalMetric = new();
+            Int64 testDuration = 123000;
+            System.DateTime testEventTime = CreateDataTimeFromString("2026-06-29 21:30:07.0080000");
+            List<String> capturedTopics = new();
+            List<Tuple<IntervalMetric, Int64, System.DateTime>> testStatusMetricEvents = new()
+            {
+                new Tuple<IntervalMetric, Int64, System.DateTime>(testIntervalMetric, testDuration, testEventTime)
+            };
+            List<Models.MetricInstanceBase> capturedMessages = new();
+            Action<String> topicArgumentAction = (String topic) => { capturedTopics.Add(topic); };
+            Action<Message<Null, Models.MetricInstanceBase>> messageArgumentAction = (Message<Null, Models.MetricInstanceBase> message) => { capturedMessages.Add(message.Value); };
+            mockProducer.ProduceAsync(Arg.Do<String>(topicArgumentAction), Arg.Do<Message<Null, Models.MetricInstanceBase>>(messageArgumentAction));
+
+            testKafkaMetricLogger.ProcessIntervalMetricEvents(testStatusMetricEvents);
+
+            Assert.AreEqual(1, capturedTopics.Count);
+            Assert.AreEqual(testTopic, capturedTopics[0]);
+            Assert.AreEqual(1, capturedMessages.Count);
+            Assert.IsAssignableFrom<Models.IntervalMetricInstance>(capturedMessages[0]);
+            Assert.AreEqual(typeof(MessageReceiveTime).FullName, capturedMessages[0].TypeFullName);
+            Assert.AreEqual(testCategory, capturedMessages[0].Category);
+            Assert.AreEqual(testIntervalMetric.Name, capturedMessages[0].Name);
+            Assert.AreEqual(testIntervalMetric.Description, capturedMessages[0].Description);
+            Assert.AreEqual(testEventTime, capturedMessages[0].EventTime);
+            Assert.AreEqual(testDuration, ((Models.IntervalMetricInstance)capturedMessages[0]).Duration);
+
+
+            testKafkaMetricLogger.Dispose();
+            testKafkaMetricLogger = new KafkaMetricLoggerWithProtectedMembers
+            (
+                testCategory,
+                testTopic,
+                new ProducerConfig(),
+                true, // logMetricDescriptionAsBlankString
+                mockBufferProcessingStrategy,
+                IntervalMetricBaseTimeUnit.Nanosecond,
+                true,
+                mockProducer,
+                mockDateTimeProvider,
+                mockStopwatch,
+                mockGuidProvider
+            );
+            capturedTopics.Clear();
+            capturedMessages.Clear();
+
+            testKafkaMetricLogger.ProcessIntervalMetricEvents(testStatusMetricEvents);
+
+            Assert.AreEqual(1, capturedTopics.Count);
+            Assert.AreEqual(testTopic, capturedTopics[0]);
+            Assert.AreEqual(1, capturedMessages.Count);
+            Assert.IsAssignableFrom<Models.IntervalMetricInstance>(capturedMessages[0]);
+            Assert.AreEqual(typeof(MessageReceiveTime).FullName, capturedMessages[0].TypeFullName);
+            Assert.AreEqual(testCategory, capturedMessages[0].Category);
+            Assert.AreEqual(testIntervalMetric.Name, capturedMessages[0].Name);
+            Assert.AreEqual("", capturedMessages[0].Description);
+            Assert.AreEqual(testEventTime, capturedMessages[0].EventTime);
+            Assert.AreEqual(testDuration, ((Models.IntervalMetricInstance)capturedMessages[0]).Duration);
         }
 
         #region Private/Protected Methods

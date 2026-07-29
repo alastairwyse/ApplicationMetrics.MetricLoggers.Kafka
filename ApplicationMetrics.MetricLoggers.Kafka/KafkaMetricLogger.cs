@@ -29,12 +29,6 @@ namespace ApplicationMetrics.MetricLoggers.Kafka
     /// </summary>
     public class KafkaMetricLogger : MetricLoggerBuffer
     {
-        // TODO:
-        //   Need to take topic name on constructor
-        //   Call all messages in queue in a loop and then await all tasks at end
-        //   How to handle schemas -> remove Confluent.SchemaRegistry package if I don't use
-        //     Avoiding schema -> https://franklinlindemberg.medium.com/using-protobuf-with-apache-kafka-and-without-schema-registry-8535f43a2569
-
         /// <summary>The category to log all metrics under.</summary>
         protected String category;
         /// <summary>The kafka topic to write metrics to.</summary>
