@@ -19,8 +19,6 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Confluent.Kafka;
 using Confluent.SchemaRegistry.Serdes.Protobuf;
-using Proto = ApplicationMetrics.MetricLoggers.Kafka.Grpc.GeneratedCode.V1;
-using Models = ApplicationMetrics.MetricLoggers.Kafka.Models;
 
 namespace ApplicationMetrics.MetricLoggers.Kafka
 {

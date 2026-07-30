@@ -17,6 +17,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Threading.Tasks;
 using Confluent.Kafka;
 using Confluent.SchemaRegistry;
 using StandardAbstraction;
@@ -185,7 +186,23 @@ namespace ApplicationMetrics.MetricLoggers.Kafka.UnitTests
         [Test]
         public void ProcessAmountMetricEvents_ExceptionSendingViaProducer()
         {
-            throw new NotImplementedException();
+            DiskBytesRead testAmountMetric = new();
+            Int64 testAmount = 1234;
+            System.DateTime testEventTime = CreateDataTimeFromString("2026-06-28 22:32:01.0020000");
+            List<Tuple<AmountMetric, Int64, System.DateTime>> testAmountMetricEvents = new()
+            {
+                new Tuple<AmountMetric, Int64, System.DateTime>(testAmountMetric, testAmount, testEventTime)
+            };
+            var mockException = new Exception("Mock exception");
+            mockProducer.ProduceAsync(Arg.Any<String>(), Arg.Any<Message<Null, Models.MetricInstanceBase>>()).Returns(Task.FromException<DeliveryResult<Null, Models.MetricInstanceBase>>(mockException));
+
+            var e = Assert.Throws<Exception>(delegate
+            {
+                testKafkaMetricLogger.ProcessAmountMetricEvents(testAmountMetricEvents);
+            });
+
+            Assert.That(e.Message, Does.StartWith($"Failed to send amount metrics to kafka cluster via producer."));
+            Assert.That(e.InnerException.InnerException == mockException);
         }
 
         [Test]
@@ -255,21 +272,20 @@ namespace ApplicationMetrics.MetricLoggers.Kafka.UnitTests
         {
             DiskReadOperation testCountMetric = new();
             System.DateTime testEventTime = CreateDataTimeFromString("2026-06-29 21:22:03.0040000");
-            List<String> capturedTopics = new();
             List<Tuple<CountMetric, System.DateTime>> testCountMetricEvents = new()
             {
                 new Tuple<CountMetric, System.DateTime>(testCountMetric, testEventTime)
             };
             var mockException = new Exception("Mock exception");
-            mockProducer.When((producer) => producer.ProduceAsync(Arg.Any<String>(), Arg.Any<Message<Null, Models.MetricInstanceBase>>())).Do((callInfo) => throw mockException);
+            mockProducer.ProduceAsync(Arg.Any<String>(), Arg.Any<Message<Null, Models.MetricInstanceBase>>()).Returns(Task.FromException<DeliveryResult<Null, Models.MetricInstanceBase>>(mockException));
 
             var e = Assert.Throws<Exception>(delegate
             {
                 testKafkaMetricLogger.ProcessCountMetricEvents(testCountMetricEvents);
             });
 
-            Assert.That(e.Message, Does.StartWith($"Failed to send amount metrics to kafka cluster via producer."));
-            Assert.That(e.InnerException == mockException);
+            Assert.That(e.Message, Does.StartWith($"Failed to send count metrics to kafka cluster via producer."));
+            Assert.That(e.InnerException.InnerException == mockException);
         }
 
         [Test]
@@ -334,7 +350,23 @@ namespace ApplicationMetrics.MetricLoggers.Kafka.UnitTests
         [Test]
         public void ProcessStatusMetricEvents_ExceptionSendingViaProducer()
         {
-            throw new NotImplementedException();
+            AvailableMemory testStatusMetric = new();
+            Int64 testValue = 123000;
+            System.DateTime testEventTime = CreateDataTimeFromString("2026-06-29 21:25:06.0070000");
+            List<Tuple<StatusMetric, Int64, System.DateTime>> testStatusMetricEvents = new()
+            {
+                new Tuple<StatusMetric, Int64, System.DateTime>(testStatusMetric, testValue, testEventTime)
+            };
+            var mockException = new Exception("Mock exception");
+            mockProducer.ProduceAsync(Arg.Any<String>(), Arg.Any<Message<Null, Models.MetricInstanceBase>>()).Returns(Task.FromException<DeliveryResult<Null, Models.MetricInstanceBase>>(mockException));
+
+            var e = Assert.Throws<Exception>(delegate
+            {
+                testKafkaMetricLogger.ProcessStatusMetricEvents(testStatusMetricEvents);
+            });
+
+            Assert.That(e.Message, Does.StartWith($"Failed to send status metrics to kafka cluster via producer."));
+            Assert.That(e.InnerException.InnerException == mockException);
         }
 
         [Test]
@@ -402,7 +434,23 @@ namespace ApplicationMetrics.MetricLoggers.Kafka.UnitTests
         [Test]
         public void ProcessIntervalMetricEvents_ExceptionSendingViaProducer()
         {
-            throw new NotImplementedException();
+            MessageReceiveTime testIntervalMetric = new();
+            Int64 testDuration = 123000;
+            System.DateTime testEventTime = CreateDataTimeFromString("2026-06-29 21:30:07.0080000");
+            List<Tuple<IntervalMetric, Int64, System.DateTime>> testStatusMetricEvents = new()
+            {
+                new Tuple<IntervalMetric, Int64, System.DateTime>(testIntervalMetric, testDuration, testEventTime)
+            };
+            var mockException = new Exception("Mock exception");
+            mockProducer.ProduceAsync(Arg.Any<String>(), Arg.Any<Message<Null, Models.MetricInstanceBase>>()).Returns(Task.FromException<DeliveryResult<Null, Models.MetricInstanceBase>>(mockException));
+
+            var e = Assert.Throws<Exception>(delegate
+            {
+                testKafkaMetricLogger.ProcessIntervalMetricEvents(testStatusMetricEvents);
+            });
+
+            Assert.That(e.Message, Does.StartWith($"Failed to send interval metrics to kafka cluster via producer."));
+            Assert.That(e.InnerException.InnerException == mockException);
         }
 
         [Test]
