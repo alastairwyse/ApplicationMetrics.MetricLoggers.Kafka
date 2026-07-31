@@ -127,6 +127,8 @@ namespace ApplicationMetrics.MetricLoggers.Kafka
             this.producer = producer;
         }
 
+        #region Private/Protected Methods
+
         /// <inheritdoc/>
         protected override void ProcessAmountMetricEvents(Queue<AmountMetricEventInstance> amountMetricEvents)
         {
@@ -261,6 +263,8 @@ namespace ApplicationMetrics.MetricLoggers.Kafka
                 return metricEventInstance.Metric.Description;
             }
         }
+
+        #endregion
 
         #region Finalize / Dispose Methods
 

@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-using ApplicationMetrics.MetricLoggers.Kafka.Models;
-using Confluent.Kafka;
 using System;
+using Confluent.Kafka;
+using ApplicationMetrics.MetricLoggers.Kafka.Models;
 
 namespace ApplicationMetrics.MetricLoggers.Kafka
 {
