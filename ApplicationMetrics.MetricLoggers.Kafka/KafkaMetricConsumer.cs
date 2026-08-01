@@ -36,6 +36,8 @@ namespace ApplicationMetrics.MetricLoggers.Kafka
         /// <summary>Indicates whether the object has been disposed.</summary>
         protected Boolean disposed;
 
+        public event EventHandler<MetricInstanceBase> MetricEventReceived;
+
         /// <summary>
         /// Initialises a new instance of the ApplicationMetrics.MetricLoggers.Kafka.KafkaMetricConsumer class.
         /// </summary>
