@@ -15,6 +15,7 @@
  */
 
 using System;
+using System.Threading;
 using Confluent.Kafka;
 using ApplicationMetrics.MetricLoggers.Kafka.Models;
 
@@ -33,9 +34,18 @@ namespace ApplicationMetrics.MetricLoggers.Kafka
         protected String topic;
         /// <summary>The <see cref="IConsumer{TKey, TValue}"/> instance to use to read metric events.</summary>
         protected IConsumer<Ignore, Models.MetricInstanceBase> consumer;
+        /// <summary>The maximum time to wait for a message from the  Kafka cluster before timing out and reconnecting (in milliseconds).</summary>
+        protected Int32 consumeLoopTimeout;
+        /// <summary>Worker thread which consumes/messages from the Kafka cluster.</summary>
+        protected Thread consumeWorkerThread;
+        /// <summary>Whether a stop request has been received.</summary>
+        protected volatile Boolean stopRequestReceived;
         /// <summary>Indicates whether the object has been disposed.</summary>
         protected Boolean disposed;
 
+        /// <summary>
+        /// An event which is raised when a metric instance is consumed/received.
+        /// </summary>
         public event EventHandler<MetricInstanceBase> MetricEventReceived;
 
         /// <summary>
@@ -43,17 +53,15 @@ namespace ApplicationMetrics.MetricLoggers.Kafka
         /// </summary>
         /// <param name="topic">The kafka topic to read metrics from.</param>
         /// <param name="bootstrapServers">A list of host/port pairs used to establish the initial connection to the Kafka cluster (see https://docs.confluent.io/platform/current/installation/configuration/producer-configs.html#bootstrap-servers for examples).</param>
-        public KafkaMetricConsumer(String topic, String bootstrapServers)
+        /// <param name="consumeLoopTimeout">The maximum time to wait for a message from the  Kafka cluster before timing out and reconnecting (in milliseconds).</param>
+        public KafkaMetricConsumer(String topic, String bootstrapServers, Int32 consumeLoopTimeout)
         {
             ThrowExceptionIfStringParameterNullOrWhitespace(nameof(topic), topic);
 
             this.topic = topic;
             var consumerConfig = new ConsumerConfig();
             consumerConfig.BootstrapServers = bootstrapServers;
-            var consumerBuilder = new ConsumerBuilder<Ignore, Models.MetricInstanceBase>(consumerConfig);
-            consumerBuilder.SetValueDeserializer(new MetricInstanceDeserializer());
-            consumer = consumerBuilder.Build();
-            disposed = false;
+            Initiailize(consumerConfig, consumeLoopTimeout);
         }
 
         /// <summary>
@@ -61,19 +69,75 @@ namespace ApplicationMetrics.MetricLoggers.Kafka
         /// </summary>
         /// <param name="topic">The kafka topic to read metrics from.</param>
         /// <param name="bootstrapServers">The configuration to apply to the underlying <see cref="IConsumer{TKey, TValue}"/>.</param>
-        public KafkaMetricConsumer(String topic, ConsumerConfig consumerConfig)
+        /// <param name="consumeLoopTimeout">The maximum time to wait for a message from the  Kafka cluster before timing out and reconnecting (in milliseconds).</param>
+        public KafkaMetricConsumer(String topic, ConsumerConfig consumerConfig, Int32 consumeLoopTimeout)
         {
 
             ThrowExceptionIfStringParameterNullOrWhitespace(nameof(topic), topic);
 
             this.topic = topic;
-            var consumerBuilder = new ConsumerBuilder<Ignore, Models.MetricInstanceBase>(consumerConfig);
-            consumerBuilder.SetValueDeserializer(new MetricInstanceDeserializer());
-            consumer = consumerBuilder.Build();
-            disposed = false;
+            Initiailize(consumerConfig, consumeLoopTimeout);
+        }
+
+        public void Start()
+        {
+            consumeWorkerThread.Start();
+        }
+
+        public void Stop()
+        {
+
         }
 
         #region Private/Protected Methods
+
+        /// <summary>
+        /// Consumes metric events from the Kafka cluster.
+        /// </summary>
+        protected void Consume()
+        {
+            consumer.Subscribe(topic);
+            while (stopRequestReceived == false)
+            {
+                ConsumeResult<Ignore, MetricInstanceBase> consumeResult = consumer.Consume(consumeLoopTimeout);
+                if (consumeResult != null)
+                {
+                    OnMetricEventReceived(consumeResult.Message.Value);
+
+                    // TODO: Need to catch and pass exception to main thread
+
+                }
+            }
+            consumer.Close();
+        }
+
+        /// <summary>
+        /// Raises the <see cref="KafkaMetricConsumer.MetricEventReceived"/> event.
+        /// </summary>
+        /// <param name="metricInstance">The metric instance which was consumed/received.</param>
+        protected virtual void OnMetricEventReceived(MetricInstanceBase metricInstance)
+        {
+            if (MetricEventReceived != null)
+            {
+                MetricEventReceived(this, metricInstance);
+            }
+        }
+
+        protected void Initiailize(ConsumerConfig consumerConfig, Int32 consumeLoopTimeout)
+        {
+            var consumerBuilder = new ConsumerBuilder<Ignore, Models.MetricInstanceBase>(consumerConfig);
+            consumerBuilder.SetValueDeserializer(new MetricInstanceDeserializer());
+            consumer = consumerBuilder.Build();
+            this.consumeLoopTimeout = consumeLoopTimeout;
+            stopRequestReceived = false;
+            consumeWorkerThread = new Thread(() => 
+            {
+                Consume();
+            });
+            consumeWorkerThread.Name = "ApplicationMetrics.MetricLoggers.Kafka.KafkaMetricConsumer metric event consumer/receiver worker thread.";
+            consumeWorkerThread.IsBackground = true;
+            disposed = false;
+        }
 
         protected void ThrowExceptionIfStringParameterNullOrWhitespace(String parameterName, String parameterValue)
         {
