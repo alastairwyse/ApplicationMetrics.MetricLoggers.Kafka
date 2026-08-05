@@ -80,15 +80,6 @@ namespace ApplicationMetrics.MetricLoggers.Kafka.UnitTests
         {
             var e = Assert.Throws<ArgumentException>(delegate
             {
-                var testKafkaMetricLogger = new KafkaMetricLogger(null, testTopic, testBootstrapServers, true, new SizeLimitedBufferProcessor(1), IntervalMetricBaseTimeUnit.Nanosecond, true);
-            });
-
-            Assert.That(e.Message, Does.StartWith("Parameter 'category' must contain a value."));
-            Assert.AreEqual("category", e.ParamName);
-
-
-            e = Assert.Throws<ArgumentException>(delegate
-            {
                 var testKafkaMetricLogger = new KafkaMetricLogger(null, testTopic, new ProducerConfig(), true, new SizeLimitedBufferProcessor(1), IntervalMetricBaseTimeUnit.Nanosecond, true);
             });
 
@@ -100,15 +91,6 @@ namespace ApplicationMetrics.MetricLoggers.Kafka.UnitTests
         public void Constructor_CategoryParameterWhitespace()
         {
             var e = Assert.Throws<ArgumentException>(delegate
-            {
-                var testKafkaMetricLogger = new KafkaMetricLogger(" ", testTopic, testBootstrapServers, true, new SizeLimitedBufferProcessor(1), IntervalMetricBaseTimeUnit.Nanosecond, true);
-            });
-
-            Assert.That(e.Message, Does.StartWith("Parameter 'category' must contain a value."));
-            Assert.AreEqual("category", e.ParamName);
-
-
-            e = Assert.Throws<ArgumentException>(delegate
             {
                 var testKafkaMetricLogger = new KafkaMetricLogger(" ", testTopic, new ProducerConfig(), true, new SizeLimitedBufferProcessor(1), IntervalMetricBaseTimeUnit.Nanosecond, true);
             });
@@ -122,15 +104,6 @@ namespace ApplicationMetrics.MetricLoggers.Kafka.UnitTests
         {
             var e = Assert.Throws<ArgumentException>(delegate
             {
-                var testKafkaMetricLogger = new KafkaMetricLogger(testCategory, null, testBootstrapServers, true, new SizeLimitedBufferProcessor(1), IntervalMetricBaseTimeUnit.Nanosecond, true);
-            });
-
-            Assert.That(e.Message, Does.StartWith("Parameter 'topic' must contain a value."));
-            Assert.AreEqual("topic", e.ParamName);
-
-
-            e = Assert.Throws<ArgumentException>(delegate
-            {
                 var testKafkaMetricLogger = new KafkaMetricLogger(testCategory, null, new ProducerConfig(), true, new SizeLimitedBufferProcessor(1), IntervalMetricBaseTimeUnit.Nanosecond, true);
             });
 
@@ -143,44 +116,11 @@ namespace ApplicationMetrics.MetricLoggers.Kafka.UnitTests
         {
             var e = Assert.Throws<ArgumentException>(delegate
             {
-                var testKafkaMetricLogger = new KafkaMetricLogger(testCategory, " ", testBootstrapServers, true, new SizeLimitedBufferProcessor(1), IntervalMetricBaseTimeUnit.Nanosecond, true);
-            });
-
-            Assert.That(e.Message, Does.StartWith("Parameter 'topic' must contain a value."));
-            Assert.AreEqual("topic", e.ParamName);
-
-
-            e = Assert.Throws<ArgumentException>(delegate
-            {
                 var testKafkaMetricLogger = new KafkaMetricLogger(testCategory, " ", new ProducerConfig(), true, new SizeLimitedBufferProcessor(1), IntervalMetricBaseTimeUnit.Nanosecond, true);
             });
 
             Assert.That(e.Message, Does.StartWith("Parameter 'topic' must contain a value."));
             Assert.AreEqual("topic", e.ParamName);
-        }
-
-        [Test]
-        public void Constructor_BootstrapServersParameterNull()
-        {
-            var e = Assert.Throws<ArgumentException>(delegate
-            {
-                var testKafkaMetricLogger = new KafkaMetricLogger(testCategory, testTopic, (String)null, true, new SizeLimitedBufferProcessor(1), IntervalMetricBaseTimeUnit.Nanosecond, true);
-            });
-
-            Assert.That(e.Message, Does.StartWith("Parameter 'bootstrapServers' must contain a value."));
-            Assert.AreEqual("bootstrapServers", e.ParamName);
-        }
-
-        [Test]
-        public void Constructor_BootstrapServersParameterWhitespace()
-        {
-            var e = Assert.Throws<ArgumentException>(delegate
-            {
-                var testKafkaMetricLogger = new KafkaMetricLogger(testCategory, testTopic, " ", true, new SizeLimitedBufferProcessor(1), IntervalMetricBaseTimeUnit.Nanosecond, true);
-            });
-
-            Assert.That(e.Message, Does.StartWith("Parameter 'bootstrapServers' must contain a value."));
-            Assert.AreEqual("bootstrapServers", e.ParamName);
         }
 
         [Test]

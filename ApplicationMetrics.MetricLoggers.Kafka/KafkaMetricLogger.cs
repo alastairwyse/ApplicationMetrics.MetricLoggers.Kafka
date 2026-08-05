@@ -41,33 +41,6 @@ namespace ApplicationMetrics.MetricLoggers.Kafka
         /// </summary>
         /// <param name="category">The category to log all metrics under.</param>
         /// <param name="topic">The kafka topic to write metrics to.</param>
-        /// <param name="bootstrapServers">A list of host/port pairs used to establish the initial connection to the Kafka cluster (see https://docs.confluent.io/platform/current/installation/configuration/producer-configs.html#bootstrap-servers for examples).</param>
-        /// <param name="logMetricDescriptionAsBlankString">Whether metric's 'description' fields should be sent as a blank strings (and thereby reducing the message sizes).</param>
-        /// <param name="bufferProcessingStrategy">Object which implements a processing strategy for the buffers (queues).</param>
-        /// <param name="intervalMetricBaseTimeUnit">The base time unit to use to log interval metrics.</param>
-        /// <param name="intervalMetricChecking">Specifies whether an exception should be thrown if the correct order of interval metric logging is not followed (e.g. End() method called before Begin()).  Note that this parameter only has an effect when running in 'non-interleaved' mode.</param>
-        public KafkaMetricLogger(String category, String topic, String bootstrapServers, Boolean logMetricDescriptionAsBlankString, IBufferProcessingStrategy bufferProcessingStrategy, IntervalMetricBaseTimeUnit intervalMetricBaseTimeUnit, Boolean intervalMetricChecking)
-             : base(bufferProcessingStrategy, intervalMetricBaseTimeUnit, intervalMetricChecking)
-        {
-            ThrowExceptionIfStringParameterNullOrWhitespace(nameof(category), category);
-            ThrowExceptionIfStringParameterNullOrWhitespace(nameof(topic), topic);
-            ThrowExceptionIfStringParameterNullOrWhitespace(nameof(bootstrapServers), bootstrapServers);
-
-            this.category = category;
-            this.topic = topic;
-            this.logMetricDescriptionAsBlankString = logMetricDescriptionAsBlankString;
-            var producerConfig = new ProducerConfig();
-            producerConfig.BootstrapServers = bootstrapServers;
-            var producerBuilder = new ProducerBuilder<Null, Models.MetricInstanceBase>(producerConfig);
-            producerBuilder.SetValueSerializer(new MetricInstanceSerializer());
-            producer = producerBuilder.Build();
-        }
-
-        /// <summary>
-        /// Initialises a new instance of the ApplicationMetrics.MetricLoggers.Kafka.KafkaMetricLogger class.
-        /// </summary>
-        /// <param name="category">The category to log all metrics under.</param>
-        /// <param name="topic">The kafka topic to write metrics to.</param>
         /// <param name="producerConfig">The configuration to apply to the underlying <see cref="IProducer{TKey, TValue}"/>.</param>
         /// <param name="logMetricDescriptionAsBlankString">Whether metric's 'description' fields should be sent as a blank strings (and thereby reducing the message sizes).</param>
         /// <param name="bufferProcessingStrategy">Object which implements a processing strategy for the buffers (queues).</param>
@@ -240,12 +213,6 @@ namespace ApplicationMetrics.MetricLoggers.Kafka
             }
         }
 
-        protected void ThrowExceptionIfStringParameterNullOrWhitespace(String parameterName, String parameterValue)
-        {
-            if (String.IsNullOrWhiteSpace(parameterValue) == true)
-                throw new ArgumentException($"Parameter '{parameterName}' must contain a value.", parameterName);
-        }
-
         /// <summary>
         /// Returns the description of the specified <see cref="MetricLoggerBase.MetricEventInstance{T}"/>, or a blank string depending on the values of field 'logMetricDescriptionAsBlankString'.
         /// </summary>
@@ -263,6 +230,16 @@ namespace ApplicationMetrics.MetricLoggers.Kafka
                 return metricEventInstance.Metric.Description;
             }
         }
+
+        #pragma warning disable 1591
+
+        protected void ThrowExceptionIfStringParameterNullOrWhitespace(String parameterName, String parameterValue)
+        {
+            if (String.IsNullOrWhiteSpace(parameterValue) == true)
+                throw new ArgumentException($"Parameter '{parameterName}' must contain a value.", parameterName);
+        }
+
+        #pragma warning restore 1591
 
         #endregion
 

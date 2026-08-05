@@ -27,10 +27,6 @@ namespace ApplicationMetrics.MetricLoggers.Kafka
     /// </summary>
     public class KafkaMetricConsumer : IDisposable
     {
-        // TODO: Test constructor
-        //   Is it possible to unit test with a mock producer?
-        // Add unit tests for topic null etc...
-
         /// <summary>The kafka topic to read metrics from.</summary>
         protected String topic;
         /// <summary>The <see cref="IConsumer{TKey, TValue}"/> instance to use to read metric events.</summary>
@@ -57,24 +53,7 @@ namespace ApplicationMetrics.MetricLoggers.Kafka
         /// Initialises a new instance of the ApplicationMetrics.MetricLoggers.Kafka.KafkaMetricConsumer class.
         /// </summary>
         /// <param name="topic">The kafka topic to read metrics from.</param>
-        /// <param name="bootstrapServers">A list of host/port pairs used to establish the initial connection to the Kafka cluster (see https://docs.confluent.io/platform/current/installation/configuration/producer-configs.html#bootstrap-servers for examples).</param>
-        /// <param name="consumeLoopTimeout">The maximum time to wait for a message from the  Kafka cluster before timing out and reconnecting (in milliseconds).</param>
-        /// <param name="consumeExceptionAction">An action to invoke if an error occurs during message consumption.  Accepts a single parameter which is the <see cref="Exception"/> containing details of the error.</param>
-        public KafkaMetricConsumer(String topic, String bootstrapServers, Int32 consumeLoopTimeout, Action<Exception> consumeExceptionAction)
-        {
-            ThrowExceptionIfStringParameterNullOrWhitespace(nameof(topic), topic);
-
-            this.topic = topic;
-            var consumerConfig = new ConsumerConfig();
-            consumerConfig.BootstrapServers = bootstrapServers;
-            Initiailize(consumerConfig, consumeLoopTimeout, consumeExceptionAction);
-        }
-
-        /// <summary>
-        /// Initialises a new instance of the ApplicationMetrics.MetricLoggers.Kafka.KafkaMetricConsumer class.
-        /// </summary>
-        /// <param name="topic">The kafka topic to read metrics from.</param>
-        /// <param name="bootstrapServers">The configuration to apply to the underlying <see cref="IConsumer{TKey, TValue}"/>.</param>
+        /// <param name="consumerConfig">The configuration to apply to the underlying <see cref="IConsumer{TKey, TValue}"/>.</param>
         /// <param name="consumeLoopTimeout">The maximum time to wait for a message from the  Kafka cluster before timing out and reconnecting (in milliseconds).</param>
         /// <param name="consumeExceptionAction">An action to invoke if an error occurs during message consumption.  Accepts a single parameter which is the <see cref="Exception"/> containing details of the error.</param>
         public KafkaMetricConsumer(String topic, ConsumerConfig consumerConfig, Int32 consumeLoopTimeout, Action<Exception> consumeExceptionAction)
@@ -89,7 +68,7 @@ namespace ApplicationMetrics.MetricLoggers.Kafka
         /// Initialises a new instance of the ApplicationMetrics.MetricLoggers.Kafka.KafkaMetricConsumer class.
         /// </summary>
         /// <param name="topic">The kafka topic to read metrics from.</param>
-        /// <param name="bootstrapServers">The configuration to apply to the underlying <see cref="IConsumer{TKey, TValue}"/>.</param>
+        /// <param name="consumerConfig">The configuration to apply to the underlying <see cref="IConsumer{TKey, TValue}"/>.</param>
         /// <param name="consumeLoopTimeout">The maximum time to wait for a message from the  Kafka cluster before timing out and reconnecting (in milliseconds).</param>
         /// <param name="consumeExceptionAction">An action to invoke if an error occurs during message consumption.  Accepts a single parameter which is the <see cref="Exception"/> containing details of the error.</param>
         /// <param name="consumer">A mock <see cref="IConsumer{TKey, TValue}"/>.</param>
@@ -111,11 +90,17 @@ namespace ApplicationMetrics.MetricLoggers.Kafka
             disposed = false;
         }
 
+        /// <summary>
+        /// Starts consuming the metric instances.
+        /// </summary>
         public void Start()
         {
             consumeWorkerThread.Start();
         }
 
+        /// <summary>
+        /// Stops consuming the metric instances.
+        /// </summary>
         public void Stop()
         {
             stopRequestReceived = true;
@@ -167,6 +152,8 @@ namespace ApplicationMetrics.MetricLoggers.Kafka
             }
         }
 
+        #pragma warning disable 1591
+
         protected void Initiailize(ConsumerConfig consumerConfig, Int32 consumeLoopTimeout, Action<Exception> consumeExceptionAction)
         {
             var consumerBuilder = new ConsumerBuilder<Ignore, Models.MetricInstanceBase>(consumerConfig);
@@ -189,6 +176,8 @@ namespace ApplicationMetrics.MetricLoggers.Kafka
             if (String.IsNullOrWhiteSpace(parameterValue) == true)
                 throw new ArgumentException($"Parameter '{parameterName}' must contain a value.", parameterName);
         }
+
+        #pragma warning restore 1591
 
         #endregion
 

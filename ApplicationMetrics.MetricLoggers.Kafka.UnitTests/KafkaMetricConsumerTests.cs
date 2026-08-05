@@ -49,15 +49,6 @@ namespace ApplicationMetrics.MetricLoggers.Kafka.UnitTests
         {
             var e = Assert.Throws<ArgumentException>(delegate
             {
-                var testKafkaMetricConsumer = new KafkaMetricConsumer(null, testBootstrapServers, testConsumeLoopTimeout, (Exception consumeException) => { });
-            });
-
-            Assert.That(e.Message, Does.StartWith("Parameter 'topic' must contain a value."));
-            Assert.AreEqual("topic", e.ParamName);
-
-
-            e = Assert.Throws<ArgumentException>(delegate
-            {
                 var testKafkaMetricConsumer = new KafkaMetricConsumer(null, new ConsumerConfig(), testConsumeLoopTimeout, (Exception consumeException) => { });
             });
 
@@ -69,15 +60,6 @@ namespace ApplicationMetrics.MetricLoggers.Kafka.UnitTests
         public void Constructor_TopicParameterWhitespace()
         {
             var e = Assert.Throws<ArgumentException>(delegate
-            {
-                var testKafkaMetricConsumer = new KafkaMetricConsumer(" ", testBootstrapServers, testConsumeLoopTimeout, (Exception consumeException) => { });
-            });
-
-            Assert.That(e.Message, Does.StartWith("Parameter 'topic' must contain a value."));
-            Assert.AreEqual("topic", e.ParamName);
-
-
-            e = Assert.Throws<ArgumentException>(delegate
             {
                 var testKafkaMetricConsumer = new KafkaMetricConsumer(" ", new ConsumerConfig(), testConsumeLoopTimeout, (Exception consumeException) => { });
             });
@@ -114,6 +96,7 @@ namespace ApplicationMetrics.MetricLoggers.Kafka.UnitTests
         [Test]
         public void Consume()
         {
+            testConsumeLoopTimeout = 500;
             var testCountMetricInstance = new CountMetricInstance
             (
                 "ApplicationMetrics.MetricLoggers.Kafka.UnitTests.DiskReadOperation",
@@ -125,16 +108,12 @@ namespace ApplicationMetrics.MetricLoggers.Kafka.UnitTests
             countMetricConsumeResult.Topic = testTopic;
             countMetricConsumeResult.Message = new Message<Ignore, MetricInstanceBase>();
             countMetricConsumeResult.Message.Value = testCountMetricInstance;
-
-
-            // TODO: Tidy up belwo code
-            // Not sure that consumer returns null in case of timeout
-            // Might be better to make the second call wait/sleep
             Boolean hasReturned = false;
             mockConsumer.Consume(testConsumeLoopTimeout).Returns
             (
                 (callInfo) => 
-                { 
+                {
+                    // First return the test metric instance, then wait for the 'testConsumeLoopTimeout' interval and return null (which mimics the behaviour of a real Consumer)
                     if (hasReturned == false)
                     {
                         hasReturned = true;
@@ -142,6 +121,7 @@ namespace ApplicationMetrics.MetricLoggers.Kafka.UnitTests
                     }
                     else
                     {
+                        Thread.Sleep(testConsumeLoopTimeout);
                         return null;
                     }
                 }
