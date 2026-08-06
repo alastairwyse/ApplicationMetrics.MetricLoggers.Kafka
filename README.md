@@ -4,7 +4,7 @@ An implementation of an [ApplicationMetrics](https://github.com/alastairwyse/App
 
 #### TODO
 * Consumer should have boolean param for rethrowConsumeExceptions (similar to buffer processing strategy implementations)
-* Possibly document group id https://www.confluent.io/blog/configuring-apache-kafka-consumer-group-ids/
+* Possibly document group id https://www.confluent.io/blog/configuring-apache-kafka-consumer-group-ids/ and offsets
 * Possibly doco about how the Consumer insists on writing direct to console rather than allowing a logger to be defined.
 * Producer should send whole set of metrics to  broker in one hit (similar to SQL Server / Postgres logger bulk insert)
 * Decide what to do with producer idempotence setting (https://docs.confluent.io/platform/current/installation/configuration/producer-configs.html#enable-idempotence)

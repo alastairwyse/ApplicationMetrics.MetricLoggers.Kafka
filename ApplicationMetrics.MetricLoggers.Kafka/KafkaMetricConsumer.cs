@@ -19,6 +19,7 @@ using System.Runtime.ExceptionServices;
 using System.Threading;
 using Confluent.Kafka;
 using ApplicationMetrics.MetricLoggers.Kafka.Models;
+using ApplicationLogging;
 
 namespace ApplicationMetrics.MetricLoggers.Kafka
 {
@@ -41,6 +42,8 @@ namespace ApplicationMetrics.MetricLoggers.Kafka
         protected Action<Exception> consumeExceptionAction;
         /// <summary>Set with any exception and state/context information which occurrs on the worker thread.  Null if no exception has occurred.</summary>
         protected ExceptionDispatchInfo consumeExceptionDispatchInfo;
+        /// <summary>The logger to use for Kafka consumer logs.</summary>
+        protected IApplicationLogger logger;
         /// <summary>Indicates whether the object has been disposed.</summary>
         protected Boolean disposed;
 
@@ -154,10 +157,23 @@ namespace ApplicationMetrics.MetricLoggers.Kafka
 
         #pragma warning disable 1591
 
-        protected void Initiailize(ConsumerConfig consumerConfig, Int32 consumeLoopTimeout, Action<Exception> consumeExceptionAction)
+        protected void Initiailize(ConsumerConfig consumerConfig, Int32 consumeLoopTimeout, Action<Exception> consumeExceptionAction, IApplicationLogger logger=null)
         {
             var consumerBuilder = new ConsumerBuilder<Ignore, Models.MetricInstanceBase>(consumerConfig);
             consumerBuilder.SetValueDeserializer(new MetricInstanceDeserializer());
+            if (logger == null)
+            {
+                this.logger = new NullApplicationLogger();
+            }
+            else
+            {
+                var logLevelConverter = new SyslogLevelToLogLevelConverter();
+                Action<IConsumer<Ignore, MetricInstanceBase>, LogMessage> logHandler = (IConsumer<Ignore, MetricInstanceBase> consumer, LogMessage logMessage) =>  
+                {
+                    logger.Log(logLevelConverter.Convert(logMessage.Level), logMessage.Message);
+                };
+                consumerBuilder.SetLogHandler(logHandler);
+            }
             consumer = consumerBuilder.Build();
             this.consumeLoopTimeout = consumeLoopTimeout;
             this.consumeExceptionAction = consumeExceptionAction;
