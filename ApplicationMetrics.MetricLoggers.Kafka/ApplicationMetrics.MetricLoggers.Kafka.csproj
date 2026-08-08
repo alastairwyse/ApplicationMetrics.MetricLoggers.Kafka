@@ -11,7 +11,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="ApplicationLogging" Version="2.0.0" />
     <PackageReference Include="ApplicationMetrics" Version="7.0.0" />
     <PackageReference Include="Confluent.Kafka" Version="2.15.0" />
     <PackageReference Include="Confluent.SchemaRegistry.Serdes.Protobuf" Version="2.15.0" />

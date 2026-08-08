@@ -19,7 +19,6 @@ using System.Runtime.ExceptionServices;
 using System.Threading;
 using Confluent.Kafka;
 using ApplicationMetrics.MetricLoggers.Kafka.Models;
-using ApplicationLogging;
 
 namespace ApplicationMetrics.MetricLoggers.Kafka
 {
@@ -38,12 +37,10 @@ namespace ApplicationMetrics.MetricLoggers.Kafka
         protected Thread consumeWorkerThread;
         /// <summary>Whether a stop request has been received.</summary>
         protected volatile Boolean stopRequestReceived;
-        /// <summary>An action to invoke if an error occurs during message consumption.  Accepts a single parameter which is the <see cref="Exception"/> containing details of the error.</summary>
+        /// <summary>An action to invoke if an <see cref="Exception"/> occurs during message consumption.  Accepts a single parameter which is the <see cref="Exception"/></summary>
         protected Action<Exception> consumeExceptionAction;
         /// <summary>Set with any exception and state/context information which occurrs on the worker thread.  Null if no exception has occurred.</summary>
         protected ExceptionDispatchInfo consumeExceptionDispatchInfo;
-        /// <summary>The logger to use for Kafka consumer logs.</summary>
-        protected IApplicationLogger logger;
         /// <summary>Indicates whether the object has been disposed.</summary>
         protected Boolean disposed;
 
@@ -58,13 +55,56 @@ namespace ApplicationMetrics.MetricLoggers.Kafka
         /// <param name="topic">The kafka topic to read metrics from.</param>
         /// <param name="consumerConfig">The configuration to apply to the underlying <see cref="IConsumer{TKey, TValue}"/>.</param>
         /// <param name="consumeLoopTimeout">The maximum time to wait for a message from the  Kafka cluster before timing out and reconnecting (in milliseconds).</param>
-        /// <param name="consumeExceptionAction">An action to invoke if an error occurs during message consumption.  Accepts a single parameter which is the <see cref="Exception"/> containing details of the error.</param>
-        public KafkaMetricConsumer(String topic, ConsumerConfig consumerConfig, Int32 consumeLoopTimeout, Action<Exception> consumeExceptionAction)
+        /// <param name="consumeExceptionAction">An action to invoke if an <see cref="Exception"/> occurs during message consumption.  Accepts a single parameter which is the <see cref="Exception"/>.</param>
+        /// <param name="kafkaErrorHandlingAction">An action to invoke if a Kafka <see cref="Error"/> occurs during message consumption.  Accepts a single parameter which is the <see cref="Error"/>.</param>
+        /// <param name="logMessageAction">An action to invoke when the Kafka <see cref="IConsumer{TKey, TValue}"/> writes a log message.  Accepts a single parameter which is the <see cref="LogMessage"/>.</param>
+        /// <remarks>According to the <see href="https://docs.confluent.io/platform/current/clients/confluent-kafka-dotnet/_site/api/Confluent.Kafka.ConsumerBuilder-2.html">documentation</see> for the <see cref="ConsumerBuilder{TKey, TValue}.SetErrorHandler(Action{IConsumer{TKey, TValue}, Error})"/> and <see cref="ConsumerBuilder{TKey, TValue}.SetLogHandler(Action{IConsumer{TKey, TValue}, LogMessage})"/> which are used to invoke the <paramref name="kafkaErrorHandlingAction"/> and <paramref name="logMessageAction"/> parameters, exceptions thrown in these actions will be silently ignored.  Hence exceptions thrown in these parameters cannot be caught and acted on by client code.</remarks>
+        public KafkaMetricConsumer
+        (
+            String topic, 
+            ConsumerConfig consumerConfig, 
+            Int32 consumeLoopTimeout,
+            Action<Exception> consumeExceptionAction = null,
+            Action<Error> kafkaErrorHandlingAction = null,
+            Action<LogMessage> logMessageAction = null
+        )
         {
             ThrowExceptionIfStringParameterNullOrWhitespace(nameof(topic), topic);
 
             this.topic = topic;
-            Initiailize(consumerConfig, consumeLoopTimeout, consumeExceptionAction);
+            var consumerBuilder = new ConsumerBuilder<Ignore, Models.MetricInstanceBase>(consumerConfig);
+            consumerBuilder.SetValueDeserializer(new MetricInstanceDeserializer());
+            if (kafkaErrorHandlingAction != null)
+            {
+                consumerBuilder.SetErrorHandler
+                (
+                    (IConsumer<Ignore, MetricInstanceBase> consumer, Error error) =>
+                    {
+                        kafkaErrorHandlingAction(error);
+                    }
+                );
+            }
+            if (logMessageAction != null)
+            {
+                consumerBuilder.SetLogHandler
+                (
+                    (IConsumer<Ignore, MetricInstanceBase> consumer, LogMessage logMessage) =>
+                    {
+                        logMessageAction(logMessage);
+                    }
+                );
+            }
+            consumer = consumerBuilder.Build();
+            this.consumeLoopTimeout = consumeLoopTimeout;
+            this.consumeExceptionAction = consumeExceptionAction;
+            stopRequestReceived = false;
+            consumeWorkerThread = new Thread(() =>
+            {
+                Consume();
+            });
+            consumeWorkerThread.Name = "ApplicationMetrics.MetricLoggers.Kafka.KafkaMetricConsumer metric event consumer/receiver worker thread.";
+            consumeWorkerThread.IsBackground = true;
+            disposed = false;
         }
 
         /// <summary>
@@ -80,6 +120,7 @@ namespace ApplicationMetrics.MetricLoggers.Kafka
         {
             ThrowExceptionIfStringParameterNullOrWhitespace(nameof(topic), topic);
 
+            this.topic = topic;
             this.consumer = consumer;
             this.consumeLoopTimeout = consumeLoopTimeout;
             this.consumeExceptionAction = consumeExceptionAction;
@@ -98,6 +139,14 @@ namespace ApplicationMetrics.MetricLoggers.Kafka
         /// </summary>
         public void Start()
         {
+            try
+            {
+                consumer.Subscribe(topic);
+            }
+            catch (Exception e)
+            {
+                throw new Exception($"Failed to subscribe to topic '{topic}'.", e);
+            }
             consumeWorkerThread.Start();
         }
 
@@ -108,6 +157,14 @@ namespace ApplicationMetrics.MetricLoggers.Kafka
         {
             stopRequestReceived = true;
             consumeWorkerThread.Join();
+            try
+            {
+                consumer.Close();
+            }
+            catch (Exception e)
+            {
+                throw new Exception($"Failed to close Kafka consumer.", e);
+            }
             if (consumeExceptionDispatchInfo != null)
             {
                 consumeExceptionDispatchInfo.Throw();
@@ -121,7 +178,6 @@ namespace ApplicationMetrics.MetricLoggers.Kafka
         /// </summary>
         protected void Consume()
         {
-            consumer.Subscribe(topic);
             while (stopRequestReceived == false)
             {
                 try
@@ -140,7 +196,6 @@ namespace ApplicationMetrics.MetricLoggers.Kafka
                     stopRequestReceived = true;
                 }
             }
-            consumer.Close();
         }
 
         /// <summary>
@@ -156,36 +211,6 @@ namespace ApplicationMetrics.MetricLoggers.Kafka
         }
 
         #pragma warning disable 1591
-
-        protected void Initiailize(ConsumerConfig consumerConfig, Int32 consumeLoopTimeout, Action<Exception> consumeExceptionAction, IApplicationLogger logger=null)
-        {
-            var consumerBuilder = new ConsumerBuilder<Ignore, Models.MetricInstanceBase>(consumerConfig);
-            consumerBuilder.SetValueDeserializer(new MetricInstanceDeserializer());
-            if (logger == null)
-            {
-                this.logger = new NullApplicationLogger();
-            }
-            else
-            {
-                var logLevelConverter = new SyslogLevelToLogLevelConverter();
-                Action<IConsumer<Ignore, MetricInstanceBase>, LogMessage> logHandler = (IConsumer<Ignore, MetricInstanceBase> consumer, LogMessage logMessage) =>  
-                {
-                    logger.Log(logLevelConverter.Convert(logMessage.Level), logMessage.Message);
-                };
-                consumerBuilder.SetLogHandler(logHandler);
-            }
-            consumer = consumerBuilder.Build();
-            this.consumeLoopTimeout = consumeLoopTimeout;
-            this.consumeExceptionAction = consumeExceptionAction;
-            stopRequestReceived = false;
-            consumeWorkerThread = new Thread(() => 
-            {
-                Consume();
-            });
-            consumeWorkerThread.Name = "ApplicationMetrics.MetricLoggers.Kafka.KafkaMetricConsumer metric event consumer/receiver worker thread.";
-            consumeWorkerThread.IsBackground = true;
-            disposed = false;
-        }
 
         protected void ThrowExceptionIfStringParameterNullOrWhitespace(String parameterName, String parameterValue)
         {

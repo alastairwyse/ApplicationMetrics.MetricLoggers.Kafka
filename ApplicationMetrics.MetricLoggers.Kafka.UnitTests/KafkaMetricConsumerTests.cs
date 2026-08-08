@@ -69,6 +69,54 @@ namespace ApplicationMetrics.MetricLoggers.Kafka.UnitTests
         }
 
         [Test]
+        public void Start_ExceptionSubscribingToTopic()
+        {
+            var mockException = new Exception("Mock exception");
+            mockConsumer.When((consumer) => consumer.Subscribe(testTopic)).Do((callInfo) => throw mockException);
+            using (KafkaMetricConsumer testKafkaMetricConsumer = new(testTopic, new ConsumerConfig(), testConsumeLoopTimeout, (Exception consumeException) => { }, mockConsumer))
+            {
+
+                var e = Assert.Throws<Exception>(delegate
+                {
+                    testKafkaMetricConsumer.Start();
+                });
+
+                Assert.That(e.Message, Does.StartWith($"Failed to subscribe to topic '{testTopic}'."));
+                Assert.AreEqual(mockException, e.InnerException);
+            }
+        }
+
+        [Test]
+        public void Stop_ExceptionClosingConsumer()
+        {
+            Exception consumeActionParameter = null;
+            Action<Exception> testConsumeExceptionAction = (Exception consumeException) => { consumeActionParameter = consumeException; };
+            mockConsumer.Consume(testConsumeLoopTimeout).Returns
+            (
+                (callInfo) =>
+                {
+                    Thread.Sleep(testConsumeLoopTimeout);
+                    return null;
+                }
+            );
+            var mockException = new Exception("Mock exception");
+            mockConsumer.When((consumer) => consumer.Close()).Do((callInfo) => throw mockException);
+            using (KafkaMetricConsumer testKafkaMetricConsumer = new(testTopic, new ConsumerConfig(), testConsumeLoopTimeout, testConsumeExceptionAction, mockConsumer))
+            {
+                testKafkaMetricConsumer.Start();
+                System.Threading.Thread.Sleep(100);
+
+                var e = Assert.Throws<Exception>(delegate
+                {
+                    testKafkaMetricConsumer.Stop();
+                });
+
+                Assert.That(e.Message, Does.StartWith("Failed to close Kafka consumer."));
+                Assert.AreEqual(mockException, e.InnerException);
+            }
+        }
+
+        [Test]
         public void Consume_ExceptionConsuming()
         {
             Exception consumeActionParameter = null;
@@ -141,6 +189,9 @@ namespace ApplicationMetrics.MetricLoggers.Kafka.UnitTests
 
                 completeSignal.WaitOne();
                 testKafkaMetricConsumer.Stop();
+                mockConsumer.Received(1).Subscribe(testTopic);
+                mockConsumer.Received(2).Consume(testConsumeLoopTimeout);
+                mockConsumer.Received(1).Close();
                 Assert.AreEqual(1, consumedMetricInstances.Count);
                 Assert.AreSame(testCountMetricInstance, consumedMetricInstances[0]);
                 testKafkaMetricConsumer.MetricEventReceived -= metricEventReceivedAction;

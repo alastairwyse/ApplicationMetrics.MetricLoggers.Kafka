@@ -46,7 +46,21 @@ namespace ApplicationMetrics.MetricLoggers.Kafka
         /// <param name="bufferProcessingStrategy">Object which implements a processing strategy for the buffers (queues).</param>
         /// <param name="intervalMetricBaseTimeUnit">The base time unit to use to log interval metrics.</param>
         /// <param name="intervalMetricChecking">Specifies whether an exception should be thrown if the correct order of interval metric logging is not followed (e.g. End() method called before Begin()).  Note that this parameter only has an effect when running in 'non-interleaved' mode.</param>
-        public KafkaMetricLogger(String category, String topic, ProducerConfig producerConfig, Boolean logMetricDescriptionAsBlankString, IBufferProcessingStrategy bufferProcessingStrategy, IntervalMetricBaseTimeUnit intervalMetricBaseTimeUnit, Boolean intervalMetricChecking)
+        /// <param name="kafkaErrorHandlingAction">An action to invoke if a Kafka <see cref="Error"/> occurs when a metric is written to the Kafka cluster..  Accepts a single parameter which is the <see cref="Error"/>.</param>
+        /// <param name="logMessageAction">An action to invoke when the underlying Kafka <see cref="IProducer{TKey, TValue}"/> writes a log message.  Accepts a single parameter which is the <see cref="LogMessage"/>.</param>
+        /// <remarks>According to the <see href="https://docs.confluent.io/platform/current/clients/confluent-kafka-dotnet/_site/api/Confluent.Kafka.ProducerBuilder-2.html">documentation</see> for the <see cref="ProducerBuilder{TKey, TValue}.SetErrorHandler(Action{IProducer{TKey, TValue}, Error})"/> and <see cref="ProducerBuilder{TKey, TValue}.SetLogHandler(Action{IProducer{TKey, TValue}, LogMessage})"/> which are used to invoke the <paramref name="kafkaErrorHandlingAction"/> and <paramref name="logMessageAction"/> parameters, exceptions thrown in these actions will be silently ignored.  Hence exceptions thrown in these parameters cannot be caught and acted on by client code.</remarks>
+        public KafkaMetricLogger
+        (
+            String category, 
+            String topic, 
+            ProducerConfig producerConfig, 
+            Boolean logMetricDescriptionAsBlankString, 
+            IBufferProcessingStrategy bufferProcessingStrategy, 
+            IntervalMetricBaseTimeUnit intervalMetricBaseTimeUnit, 
+            Boolean intervalMetricChecking,
+            Action<Error> kafkaErrorHandlingAction = null,
+            Action<LogMessage> logMessageAction = null
+        )
              : base(bufferProcessingStrategy, intervalMetricBaseTimeUnit, intervalMetricChecking)
         {
             ThrowExceptionIfStringParameterNullOrWhitespace(nameof(category), category);
@@ -57,6 +71,26 @@ namespace ApplicationMetrics.MetricLoggers.Kafka
             this.logMetricDescriptionAsBlankString = logMetricDescriptionAsBlankString;
             var producerBuilder = new ProducerBuilder<Null, Models.MetricInstanceBase>(producerConfig);
             producerBuilder.SetValueSerializer(new MetricInstanceSerializer());
+            if (kafkaErrorHandlingAction != null)
+            {
+                producerBuilder.SetErrorHandler
+                (
+                    (IProducer<Null, Models.MetricInstanceBase> producer, Error error) =>
+                    {
+                        kafkaErrorHandlingAction(error);
+                    }
+                );
+            }
+            if (logMessageAction != null)
+            {
+                producerBuilder.SetLogHandler
+                (
+                    (IProducer<Null, Models.MetricInstanceBase> producer, LogMessage logMessage) =>
+                    {
+                        logMessageAction(logMessage);
+                    }
+                );
+            }
             producer = producerBuilder.Build();
         }
 
