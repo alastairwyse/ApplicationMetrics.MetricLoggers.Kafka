@@ -54,7 +54,7 @@ namespace ApplicationMetrics.MetricLoggers.Kafka
         /// </summary>
         /// <param name="topic">The kafka topic to read metrics from.</param>
         /// <param name="consumerConfig">The configuration to apply to the underlying <see cref="IConsumer{TKey, TValue}"/>.</param>
-        /// <param name="consumeLoopTimeout">The maximum time to wait for a message from the  Kafka cluster before timing out and reconnecting (in milliseconds).</param>
+        /// <param name="consumeLoopTimeout">The maximum time to wait for a message from the Kafka cluster before timing out and reconnecting (in milliseconds).</param>
         /// <param name="consumeExceptionAction">An action to invoke if an <see cref="Exception"/> occurs during message consumption.  Accepts a single parameter which is the <see cref="Exception"/>.</param>
         /// <param name="kafkaErrorHandlingAction">An action to invoke if a Kafka <see cref="Error"/> occurs during message consumption.  Accepts a single parameter which is the <see cref="Error"/>.</param>
         /// <param name="logMessageAction">An action to invoke when the Kafka <see cref="IConsumer{TKey, TValue}"/> writes a log message.  Accepts a single parameter which is the <see cref="LogMessage"/>.</param>
@@ -112,7 +112,7 @@ namespace ApplicationMetrics.MetricLoggers.Kafka
         /// </summary>
         /// <param name="topic">The kafka topic to read metrics from.</param>
         /// <param name="consumerConfig">The configuration to apply to the underlying <see cref="IConsumer{TKey, TValue}"/>.</param>
-        /// <param name="consumeLoopTimeout">The maximum time to wait for a message from the  Kafka cluster before timing out and reconnecting (in milliseconds).</param>
+        /// <param name="consumeLoopTimeout">The maximum time to wait for a message from the Kafka cluster before timing out and reconnecting (in milliseconds).</param>
         /// <param name="consumeExceptionAction">An action to invoke if an error occurs during message consumption.  Accepts a single parameter which is the <see cref="Exception"/> containing details of the error.</param>
         /// <param name="consumer">A mock <see cref="IConsumer{TKey, TValue}"/>.</param>
         /// <remarks>This constructor is included to facilitate unit testing.</remarks>
