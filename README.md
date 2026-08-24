@@ -2,6 +2,29 @@ ApplicationMetrics.MetricLoggers.Kafka
 ---
 An implementation of an [ApplicationMetrics](https://github.com/alastairwyse/ApplicationMetrics) [metric logger](https://github.com/alastairwyse/ApplicationMetrics/blob/master/ApplicationMetrics/IMetricLogger.cs) which writes metric and instrumentation events to a Kafka cluster, and allows consuming the events via a Kafka consumer.
 
+#### Overview
+
+The metric logging is performed by 2 components, a KafkaMetricLogger which writes metrics to a Kafka cluster, and corresponding KafkaMetricConsumer which reads/consumes metrics from the cluster.  Whilst many other implementations of ApplicationMetrics metric loggers write metrics to persistent storage for post-process analysis and reporting, the idea behind the Kafka implementation is to provide a mechanism to allow a programmatic hook/tap into the metric events, to allow realtime decision and action to be taken based on the metric events and values.  An example would be detecting when a system is under high load, and then triggering a process to scale up the system to accomodate.
+
+#### Data Model
+
+Whilst the [IMetricLogger](https://github.com/alastairwyse/ApplicationMetrics/blob/master/ApplicationMetrics/IMetricLogger.cs) interface separates classes representing individual metrics from the assoicated metric values, the Kafka logger combines the metrics and values into an 'instance' class meaning all properties relating to the logging of a given metric are available in a single object.  The base properties (common across all metric types) are listed below...
+
+| Property Name | Description |
+| ------------- | ----------- |
+| TypeFullName | The fully qualified name of the .NET Type of the metric.  Populated using the [Type.FullName](https://learn.microsoft.com/en-us/dotnet/api/system.type.fullname?view=netstandard-2.0) property of the metric class. |
+| Category | The category of the metric.  Value is same as that populated in the KafkaMetricLogger constructor parameter of the same name. |
+| Name | The name of the metric. |
+| Description | A description of the metric, explaining what it measures and/or represents. |
+| EventTime | The timestamp when the metric occurred.  In the case of interval metrics, this is the timestamp when the Begin() method was called (i.e. when the interval started). |
+
+AmountMetricInstance, IntervalMetricInstance, and StatusMetricInstance classes additionally define numeric properties storing their associated metric values.
+
+#### Kafka Setup
+TODO -> various topics as per below
+
+
+
 #### TODO
 * Possibly document group id https://www.confluent.io/blog/configuring-apache-kafka-consumer-group-ids/ and offsets.
 * Doco on exception and log Actions
@@ -13,6 +36,18 @@ An implementation of an [ApplicationMetrics](https://github.com/alastairwyse/App
 * Possibly need to expose an Action&lt;ProducerBuilder&gt; to allow client config
 * Create a utility class which consumes from Kafka and writes to another IMetricLogger instance
 * If you want to put different metric types on different topics, could use MetricFilter and router to multiple Kafka metric loggers
+
+#### TODO Documentation
+* Document need for consumer group in consumer setup stuff
+* Standard blurbs that are in all metric logger implementations
+* Overriding logging and exception handling AND Exception handler (non-Kafka one)
+* Uses prorobuf
+* TKey is null -> what are implications for shard partitions
+* Uses default auto commit
+* Explain how consumer runs on a thread
+* Explain error handling on consumer thread
+* Talk about events arriving out of order with null TKey (stuff already out of order with Bufferbase)
+* Discuss idempotence (read confluent link above)
 
 #### Producer Setup
 
