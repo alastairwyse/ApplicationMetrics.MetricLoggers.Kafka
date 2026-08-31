@@ -21,9 +21,32 @@ Whilst the [IMetricLogger](https://github.com/alastairwyse/ApplicationMetrics/bl
 AmountMetricInstance, IntervalMetricInstance, and StatusMetricInstance classes additionally define numeric properties storing their associated metric values.
 
 #### Kafka Setup
-TODO -> various topics as per below
+Kafka clusters and hence producer and consumer instances are highly configurable.  The constructors for KafkaMetricLogger and KafkaMetricConsumer objects have been designed to allow these configuration parameters to be passed through to the underlying [IProducer](https://docs.confluent.io/platform/current/clients/confluent-kafka-dotnet/_site/api/Confluent.Kafka.IProducer-2.html) and [IConsumer](https://docs.confluent.io/platform/current/clients/confluent-kafka-dotnet/_site/api/Confluent.Kafka.IConsumer-2.html) instances.
+
+##### ProducerConfig and ConsumerConfig
+
+Can be set as constructor param
+BootstrapServers set with broker ip/host
+GroupId needs to be set on ConsumerConfig
+Might need to set AllowAutoCreateTopics
+AutoOffsetReset -> link to doco and explanation (https://www.confluent.io/blog/guide-to-consumer-offsets/)
+Retention (see https://www.confluent.io/learn/kafka-retention/)
+
+##### TKey Value
+
+Set to Kafka Null.
+Messages assigned to topic paritions using round robin approach
+See https://www.confluent.io/learn/kafka-message-key/
+Messages sent to different partitions could arrive out of order, but this doesn't deviate from existing MetricLoggerBuffer functionality.
+EventTime property could be used to reorder if necessary
 
 
+##### Error and Log Handler
+No point throwing exceptions
+
+#### Exception Handling
+On consumer worker thread
+Maybe show example... will handle error thrown after multiple retries and internal error handler calls
 
 #### TODO
 * Possibly document group id https://www.confluent.io/blog/configuring-apache-kafka-consumer-group-ids/ and offsets.
