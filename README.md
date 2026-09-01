@@ -47,6 +47,25 @@ No point throwing exceptions
 #### Exception Handling
 On consumer worker thread
 Maybe show example... will handle error thrown after multiple retries and internal error handler calls
+Take remark from consumer constructor... types of events which will cause an exception and what's the effect.
+
+Example is below if I decide to include this in the doco...
+
+```
+Kafka Error -> Reason: 1/1 brokers are down; Code: Local_AllBrokersDown, IsFatal: False.
+Kafka Error -> Reason: 1/1 brokers are down; Code: Local_AllBrokersDown, IsFatal: False.
+Consume Exception -> Exception Exception occurred on message consumer worker thread at 2026-09-01 12:44:18.3421814. occurred...
+
+Unhandled exception. System.Exception: Exception occurred on message consumer worker thread at 2026-09-01 12:44:18.3421814.
+ ---> Confluent.Kafka.ConsumeException: Subscribed topic not available: TestTopic: Broker: Unknown topic or partition
+   at Confluent.Kafka.Consumer`2.Consume(Int32 millisecondsTimeout)
+   at ApplicationMetrics.MetricLoggers.Kafka.KafkaMetricConsumer.Consume() in C:\Development\C#\ApplicationMetrics.MetricLoggers.Kafka\ApplicationMetrics.MetricLoggers.Kafka\KafkaMetricConsumer.cs:line 185
+   --- End of inner exception stack trace ---
+   at ApplicationMetrics.MetricLoggers.Kafka.KafkaMetricConsumer.Stop() in C:\Development\C#\ApplicationMetrics.MetricLoggers.Kafka\ApplicationMetrics.MetricLoggers.Kafka\KafkaMetricConsumer.cs:line 170
+   at KafkaHelloWorld.KafkaMetricConsumerTest.TestMaximalConsumer() in C:\Development\C#\Test Projects\KafkaHelloWorld\KafkaHelloWorld\KafkaMetricConsumerTest.cs:line 113
+   at KafkaHelloWorld.Program.Main(String[] args) in C:\Development\C#\Test Projects\KafkaHelloWorld\KafkaHelloWorld\Program.cs:line 18
+
+```
 
 #### TODO
 * Possibly document group id https://www.confluent.io/blog/configuring-apache-kafka-consumer-group-ids/ and offsets.
@@ -140,7 +159,7 @@ KafkaMetricLogger accepts the following constructor parameters...
 | bufferProcessingStrategy | An object implementing IBufferProcessingStrategy which decides when the buffers holding logged metric events should be flushed (and be written to the Kafka broker). |
 | intervalMetricBaseTimeUnit | The base time unit to use to log interval metrics. |
 | intervalMetricChecking | Specifies whether an exception should be thrown if the correct order of interval metric logging is not followed (e.g. End() method called before Begin()).  Note that this parameter only has an effect when running in 'non-interleaved' mode. |
-| kafkaErrorHandlingAction | An action to invoke if a Kafka Error occurs when a metric is written to the Kafka cluster.  Accepts a single parameter which is the Error. |
+| kafkaErrorHandlingAction | An action to invoke if the underlying Kafka IProducer&lt;TKey, TValue&gt; raises a Kafka Error when a metric is written to the cluster.  Accepts a single parameter which is the Error. |
 | logMessageAction | An action to invoke when the underlying Kafka IProducer&lt;TKey, TValue&gt; writes a log message.  Accepts a single parameter which is the LogMessage. |
 
 #### Consumer Setup
@@ -229,6 +248,6 @@ KafkaMetricConsumer accepts the following constructor parameters...
 | consumerConfig | The configuration to apply to the underlying IConsumer&lt;TKey, TValue&gt;. |
 | consumeLoopTimeout | The maximum time to wait for a message from the Kafka cluster before timing out and reconnecting (in milliseconds). |
 | consumeExceptionAction | An action to invoke if an Exception occurs during message consumption.  Accepts a single parameter which is the Exception. |
-| kafkaErrorHandlingAction | An action to invoke if a Kafka Error occurs during message consumption.  Accepts a single parameter which is the Error. |
+| kafkaErrorHandlingAction | An action to invoke if the underlying Kafka IConsumer&lt;TKey, TValue&gt; raises a Kafka Error when a metric is consumed from the cluster.  Accepts a single parameter which is the Error. |
 | logMessageAction | An action to invoke when the Kafka IConsumer&lt;TKey, TValue&gt; writes a log message.  Accepts a single parameter which is the LogMessage. |
 
