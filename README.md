@@ -24,13 +24,13 @@ AmountMetricInstance, IntervalMetricInstance, and StatusMetricInstance classes a
 Kafka clusters and hence producer and consumer instances are highly configurable.  The constructors for KafkaMetricLogger and KafkaMetricConsumer objects have been designed to allow these configuration parameters to be passed through to the underlying [IProducer](https://docs.confluent.io/platform/current/clients/confluent-kafka-dotnet/_site/api/Confluent.Kafka.IProducer-2.html) and [IConsumer](https://docs.confluent.io/platform/current/clients/confluent-kafka-dotnet/_site/api/Confluent.Kafka.IConsumer-2.html) instances.
 
 ##### ProducerConfig and ConsumerConfig
+[ProducerConfig](https://docs.confluent.io/platform/current/clients/confluent-kafka-dotnet/_site/api/Confluent.Kafka.ProducerConfig.html) and [ConsumerConfig](https://docs.confluent.io/platform/current/clients/confluent-kafka-dotnet/_site/api/Confluent.Kafka.ConsumerConfig.html) can be set on the KafkaMetricLogger and KafkaMetricConsumer classes respectively, to control and configure the [IProducer](https://docs.confluent.io/platform/current/clients/confluent-kafka-dotnet/_site/api/Confluent.Kafka.IProducer-2.html) and [IConsumer](https://docs.confluent.io/platform/current/clients/confluent-kafka-dotnet/_site/api/Confluent.Kafka.IConsumer-2.html) instances which implement the interface to the Kafka broker.  The [BootstrapServers](https://docs.confluent.io/platform/current/clients/confluent-kafka-dotnet/_site/api/Confluent.Kafka.ClientConfig.html#Confluent_Kafka_ClientConfig_BootstrapServers) property must be set on the configuration both cases to specify the network location of the broker.  
 
-Can be set as constructor param
-BootstrapServers set with broker ip/host
-GroupId needs to be set on ConsumerConfig
-Might need to set AllowAutoCreateTopics
-AutoOffsetReset -> link to doco and explanation (https://www.confluent.io/blog/guide-to-consumer-offsets/)
-Retention (see https://www.confluent.io/learn/kafka-retention/)
+In the case of the consumer configuration, the [GroupId](https://docs.confluent.io/platform/current/clients/confluent-kafka-dotnet/_site/api/Confluent.Kafka.ConsumerConfig.html#Confluent_Kafka_ConsumerConfig_GroupId) property must also be set (see https://www.confluent.io/blog/configuring-apache-kafka-consumer-group-ids/).
+
+If the Kafka broker is not preconfigured with the relevant topics setup, the producer configuration [AllowAutoCreateTopics](https://docs.confluent.io/platform/current/clients/confluent-kafka-dotnet/_site/api/Confluent.Kafka.ClientConfig.html#Confluent_Kafka_ClientConfig_AllowAutoCreateTopics) property should be set to true.
+
+Both [offset](https://www.confluent.io/blog/guide-to-consumer-offsets/) and [retention](https://www.confluent.io/learn/kafka-retention/) parameters may need to be configured depending on the required behaviour.
 
 ##### TKey Value
 
