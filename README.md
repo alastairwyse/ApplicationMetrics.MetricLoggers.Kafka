@@ -2,11 +2,11 @@ ApplicationMetrics.MetricLoggers.Kafka
 ---
 An implementation of an [ApplicationMetrics](https://github.com/alastairwyse/ApplicationMetrics) [metric logger](https://github.com/alastairwyse/ApplicationMetrics/blob/master/ApplicationMetrics/IMetricLogger.cs) which writes metric and instrumentation events to a Kafka cluster, and allows consuming the events via a Kafka consumer.
 
-#### Overview
+### Overview
 
 The metric logging is performed by 2 components, a KafkaMetricLogger which writes metrics to a Kafka cluster, and corresponding KafkaMetricConsumer which reads/consumes metrics from the cluster.  Whilst many other implementations of ApplicationMetrics metric loggers write metrics to persistent storage for post-process analysis and reporting, the idea behind the Kafka implementation is to provide a mechanism to allow a programmatic hook/tap into the metric events, to allow realtime decision and action to be taken based on the metric events and values.  An example would be detecting when a system is under high load, and then triggering a process to scale up the system to accomodate.
 
-#### Data Model
+### Data Model
 
 Whilst the [IMetricLogger](https://github.com/alastairwyse/ApplicationMetrics/blob/master/ApplicationMetrics/IMetricLogger.cs) interface separates classes representing individual metrics from the assoicated metric values, the Kafka logger combines the metrics and values into an 'instance' class meaning all properties relating to the logging of a given metric are available in a single object.  The base properties (common across all metric types) are listed below...
 
@@ -20,10 +20,10 @@ Whilst the [IMetricLogger](https://github.com/alastairwyse/ApplicationMetrics/bl
 
 AmountMetricInstance, IntervalMetricInstance, and StatusMetricInstance classes additionally define numeric properties storing their associated metric values.
 
-#### Kafka Setup
+### Kafka Setup
 Kafka clusters and hence producer and consumer instances are highly configurable.  The constructors for KafkaMetricLogger and KafkaMetricConsumer objects have been designed to allow these configuration parameters to be passed through to the underlying [IProducer](https://docs.confluent.io/platform/current/clients/confluent-kafka-dotnet/_site/api/Confluent.Kafka.IProducer-2.html) and [IConsumer](https://docs.confluent.io/platform/current/clients/confluent-kafka-dotnet/_site/api/Confluent.Kafka.IConsumer-2.html) instances.
 
-##### ProducerConfig and ConsumerConfig
+#### ProducerConfig and ConsumerConfig
 [ProducerConfig](https://docs.confluent.io/platform/current/clients/confluent-kafka-dotnet/_site/api/Confluent.Kafka.ProducerConfig.html) and [ConsumerConfig](https://docs.confluent.io/platform/current/clients/confluent-kafka-dotnet/_site/api/Confluent.Kafka.ConsumerConfig.html) can be set on the KafkaMetricLogger and KafkaMetricConsumer classes respectively, to control and configure the [IProducer](https://docs.confluent.io/platform/current/clients/confluent-kafka-dotnet/_site/api/Confluent.Kafka.IProducer-2.html) and [IConsumer](https://docs.confluent.io/platform/current/clients/confluent-kafka-dotnet/_site/api/Confluent.Kafka.IConsumer-2.html) instances which implement the interface to the Kafka broker.  The [BootstrapServers](https://docs.confluent.io/platform/current/clients/confluent-kafka-dotnet/_site/api/Confluent.Kafka.ClientConfig.html#Confluent_Kafka_ClientConfig_BootstrapServers) property must be set on the configuration both cases to specify the network location of the broker.  
 
 In the case of the consumer configuration, the [GroupId](https://docs.confluent.io/platform/current/clients/confluent-kafka-dotnet/_site/api/Confluent.Kafka.ConsumerConfig.html#Confluent_Kafka_ConsumerConfig_GroupId) property must also be set (see https://www.confluent.io/blog/configuring-apache-kafka-consumer-group-ids/).
@@ -32,19 +32,13 @@ If the Kafka broker is not preconfigured with the relevant topics setup, the pro
 
 Both [offset](https://www.confluent.io/blog/guide-to-consumer-offsets/) and [retention](https://www.confluent.io/learn/kafka-retention/) parameters may need to be configured depending on the required behaviour.
 
-##### TKey Value
+#### TKey Value
+The [IProducer](https://docs.confluent.io/platform/current/clients/confluent-kafka-dotnet/_site/api/Confluent.Kafka.IProducer-2.html) and [IConsumer](https://docs.confluent.io/platform/current/clients/confluent-kafka-dotnet/_site/api/Confluent.Kafka.IConsumer-2.html) objects which underlie KafkaMetricLogger and KafkaMetricConsumer are generic classes which require specifying key and value types for all messages sent to and consumed from the Kafka broker.  The value type is set to be the [MetricInstanceBase](https://github.com/alastairwyse/ApplicationMetrics.MetricLoggers.Kafka/blob/main/ApplicationMetrics.MetricLoggers.Kafka/Models/MetricInstanceBase.cs) class described [above](#data-model).  The key type is set to be [Kafka's Null](https://docs.confluent.io/platform/current/clients/confluent-kafka-dotnet/_site/api/Confluent.Kafka.Null.html).  As described in the [documentation](https://www.confluent.io/learn/kafka-message-key/#when-no-key-is-provided), when the key is Null and the destination topic is split across multiple partitions, the producer will distribute messages to these partitions in a round-robin manner.  The downside of having a Null key is that the messages can be consumed in a different order to the order they were produced in.  However, the ApplicationMetrics [MetricLoggerBuffer](https://github.com/alastairwyse/ApplicationMetrics/blob/master/ApplicationMetrics.MetricLoggers/MetricLoggerBuffer.cs) class (from which KafkaMetricLogger is derived) already buffers metrics of different types (i.e. acount, amount, etc...) into batches before logging/writing, which can result in out-of-order logging.  It's expected that if metrics are required to be ordered they can by sorted by the 'EventTime' property in the receiving system/store.  Hence using a null Key and the ensuing potential out-of-order consumption does not degrade the functionality already implicit in ApplicationMetrics.
 
-Set to Kafka Null.
-Messages assigned to topic paritions using round robin approach
-See https://www.confluent.io/learn/kafka-message-key/
-Messages sent to different partitions could arrive out of order, but this doesn't deviate from existing MetricLoggerBuffer functionality.
-EventTime property could be used to reorder if necessary
-
-
-##### Error and Log Handler
+#### Error and Log Handler
 No point throwing exceptions
 
-#### Exception Handling
+### Exception Handling
 On consumer worker thread
 Maybe show example... will handle error thrown after multiple retries and internal error handler calls
 Take remark from consumer constructor... types of events which will cause an exception and what's the effect.
@@ -67,7 +61,7 @@ Unhandled exception. System.Exception: Exception occurred on message consumer wo
 
 ```
 
-#### TODO
+### TODO
 * Possibly document group id https://www.confluent.io/blog/configuring-apache-kafka-consumer-group-ids/ and offsets.
 * Doco on exception and log Actions
 * Decide what to do with producer idempotence setting (https://docs.confluent.io/platform/current/installation/configuration/producer-configs.html#enable-idempotence)
@@ -79,7 +73,7 @@ Unhandled exception. System.Exception: Exception occurred on message consumer wo
 * Create a utility class which consumes from Kafka and writes to another IMetricLogger instance
 * If you want to put different metric types on different topics, could use MetricFilter and router to multiple Kafka metric loggers
 
-#### TODO Documentation
+### TODO Documentation
 * Document need for consumer group in consumer setup stuff
 * Standard blurbs that are in all metric logger implementations
 * Overriding logging and exception handling AND Exception handler (non-Kafka one)
@@ -91,7 +85,7 @@ Unhandled exception. System.Exception: Exception occurred on message consumer wo
 * Talk about events arriving out of order with null TKey (stuff already out of order with Bufferbase)
 * Discuss idempotence (read confluent link above)
 
-#### Producer Setup
+### Producer Setup
 
 Minimal setup
 
@@ -162,7 +156,7 @@ KafkaMetricLogger accepts the following constructor parameters...
 | kafkaErrorHandlingAction | An action to invoke if the underlying Kafka IProducer&lt;TKey, TValue&gt; raises a Kafka Error when a metric is written to the cluster.  Accepts a single parameter which is the Error. |
 | logMessageAction | An action to invoke when the underlying Kafka IProducer&lt;TKey, TValue&gt; writes a log message.  Accepts a single parameter which is the LogMessage. |
 
-#### Consumer Setup
+### Consumer Setup
 
 Minimal setup
 
