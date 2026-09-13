@@ -33,32 +33,52 @@ If the Kafka broker is not preconfigured with the relevant topics setup, the pro
 Both [offset](https://www.confluent.io/blog/guide-to-consumer-offsets/) and [retention](https://www.confluent.io/learn/kafka-retention/) parameters may need to be configured depending on the required behaviour.
 
 #### TKey Value
-The [IProducer](https://docs.confluent.io/platform/current/clients/confluent-kafka-dotnet/_site/api/Confluent.Kafka.IProducer-2.html) and [IConsumer](https://docs.confluent.io/platform/current/clients/confluent-kafka-dotnet/_site/api/Confluent.Kafka.IConsumer-2.html) objects which underlie KafkaMetricLogger and KafkaMetricConsumer are generic classes which require specifying key and value types for all messages sent to and consumed from the Kafka broker.  The value type is set to be the [MetricInstanceBase](https://github.com/alastairwyse/ApplicationMetrics.MetricLoggers.Kafka/blob/main/ApplicationMetrics.MetricLoggers.Kafka/Models/MetricInstanceBase.cs) class described [above](#data-model).  The key type is set to be [Kafka's Null](https://docs.confluent.io/platform/current/clients/confluent-kafka-dotnet/_site/api/Confluent.Kafka.Null.html).  As described in the [documentation](https://www.confluent.io/learn/kafka-message-key/#when-no-key-is-provided), when the key is Null and the destination topic is split across multiple partitions, the producer will distribute messages to these partitions in a round-robin manner.  The downside of having a Null key is that the messages can be consumed in a different order to the order they were produced in.  However, the ApplicationMetrics [MetricLoggerBuffer](https://github.com/alastairwyse/ApplicationMetrics/blob/master/ApplicationMetrics.MetricLoggers/MetricLoggerBuffer.cs) class (from which KafkaMetricLogger is derived) already buffers metrics of different types (i.e. acount, amount, etc...) into batches before logging/writing, which can result in out-of-order logging.  It's expected that if metrics are required to be ordered they can by sorted by the 'EventTime' property in the receiving system/store.  Hence using a null Key and the ensuing potential out-of-order consumption does not degrade the functionality already implicit in ApplicationMetrics.
+The [IProducer](https://docs.confluent.io/platform/current/clients/confluent-kafka-dotnet/_site/api/Confluent.Kafka.IProducer-2.html) and [IConsumer](https://docs.confluent.io/platform/current/clients/confluent-kafka-dotnet/_site/api/Confluent.Kafka.IConsumer-2.html) objects which underlie KafkaMetricLogger and KafkaMetricConsumer are generic classes which require specifying key and value types for all messages sent to and consumed from the Kafka broker.  The value type is set to be the [MetricInstanceBase](https://github.com/alastairwyse/ApplicationMetrics.MetricLoggers.Kafka/blob/main/ApplicationMetrics.MetricLoggers.Kafka/Models/MetricInstanceBase.cs) class described [above](#data-model).  The key type is set to be [Kafka's Null](https://docs.confluent.io/platform/current/clients/confluent-kafka-dotnet/_site/api/Confluent.Kafka.Null.html).  As described in the [documentation](https://www.confluent.io/learn/kafka-message-key/#when-no-key-is-provided), when the key is Null and the destination topic is split across multiple partitions, the producer will distribute messages to these partitions in a round-robin manner.  The downside of having a Null key is that the messages can be consumed in a different order to the order they were produced in.  However, the ApplicationMetrics [MetricLoggerBuffer](https://github.com/alastairwyse/ApplicationMetrics/blob/master/ApplicationMetrics.MetricLoggers/MetricLoggerBuffer.cs) class (from which KafkaMetricLogger is derived) already buffers metrics of different types (i.e. acount, amount, etc...) into batches before logging/writing, which can result in out-of-order logging.  It's expected that if metrics are required to be ordered they can by sorted by the 'EventTime' property in the receiving system/store.  Hence using a null Key and the ensuing potential out-of-order consumption, does not degrade the functionality already implicit in ApplicationMetrics.
 
 #### Error and Log Handler
-No point throwing exceptions
+The constructors for KafkaMetricLogger and KafkaMetricConsumer objects allow setting Actions which handle when [Kafka errors](https://docs.confluent.io/platform/current/clients/confluent-kafka-dotnet/_site/api/Confluent.Kafka.Error.html) are raised and [logs](https://docs.confluent.io/platform/current/clients/confluent-kafka-dotnet/_site/api/Confluent.Kafka.LogMessage.html) are written by the underlying IProducer and IConsumer.  These are set via parameters 'kafkaErrorHandlingAction' and 'logMessageAction'.  As per the [Kafka](https://docs.confluent.io/platform/current/clients/confluent-kafka-dotnet/_site/api/Confluent.Kafka.ProducerBuilder-2.html#Confluent_Kafka_ProducerBuilder_2_SetErrorHandler_System_Action_Confluent_Kafka_IProducer__0__1__Confluent_Kafka_Error__) [documentation](https://docs.confluent.io/platform/current/clients/confluent-kafka-dotnet/_site/api/Confluent.Kafka.ProducerBuilder-2.html#Confluent_Kafka_ProducerBuilder_2_SetLogHandler_System_Action_Confluent_Kafka_IProducer__0__1__Confluent_Kafka_LogMessage__) if exceptions are thrown in these Actions, they will be ignored.
 
-### Exception Handling
-On consumer worker thread
-Maybe show example... will handle error thrown after multiple retries and internal error handler calls
-Take remark from consumer constructor... types of events which will cause an exception and what's the effect.
+#### Exception Handling
+The KafkaMetricConsumer performs consumption from the broker on a worker thread.  If a critical/fatal error occurs during consumption, it will not be rethrown on the KafkaMetricConsumer client's thread until the Stop() method is called.  However an Action can be set via constructor parameter 'consumeExceptionAction', which will be invoked as soon as any critical/fatal exception is thrown.
 
-Example is below if I decide to include this in the doco...
+For example, setting the 'consumeExceptionAction' parameter to the following action...
+
+```C#
+ConsumerConfig config = new();
+config.BootstrapServers = "127.0.0.1:9092";
+config.GroupId = "TestGroupId";
+Action<Error> kafkaErrorHandlingAction = (Error error) =>
+{
+    Console.WriteLine($"Kafka Error -> Reason: {error.Reason}; Code: {error.Code}, IsFatal: {error.IsFatal}.");
+};
+Action<Exception> consumeExceptionAction = (Exception e) =>
+{
+    Console.WriteLine($"Consume Exception -> {e.Message}");
+}; 
+using (var consumer = new KafkaMetricConsumer("TestTopic", config, 1000, consumeExceptionAction, kafkaErrorHandlingAction))
+{
+    // etc...
+}
+```
+
+...would result in the following information written to the console when the IConsumer encountered a fatal error, and threw and exception (in this case, the configured topic not existing in the broker)...
 
 ```
 Kafka Error -> Reason: 1/1 brokers are down; Code: Local_AllBrokersDown, IsFatal: False.
 Kafka Error -> Reason: 1/1 brokers are down; Code: Local_AllBrokersDown, IsFatal: False.
-Consume Exception -> Exception Exception occurred on message consumer worker thread at 2026-09-01 12:44:18.3421814. occurred...
+Consume Exception -> Exception occurred on message consumer worker thread at 2026-09-01 12:44:18.3421814. 
+```
 
+On calling the KafkaMetricConsumer Stop() method, the exception would be rethrown...
+
+```
 Unhandled exception. System.Exception: Exception occurred on message consumer worker thread at 2026-09-01 12:44:18.3421814.
  ---> Confluent.Kafka.ConsumeException: Subscribed topic not available: TestTopic: Broker: Unknown topic or partition
    at Confluent.Kafka.Consumer`2.Consume(Int32 millisecondsTimeout)
    at ApplicationMetrics.MetricLoggers.Kafka.KafkaMetricConsumer.Consume() in C:\Development\C#\ApplicationMetrics.MetricLoggers.Kafka\ApplicationMetrics.MetricLoggers.Kafka\KafkaMetricConsumer.cs:line 185
    --- End of inner exception stack trace ---
    at ApplicationMetrics.MetricLoggers.Kafka.KafkaMetricConsumer.Stop() in C:\Development\C#\ApplicationMetrics.MetricLoggers.Kafka\ApplicationMetrics.MetricLoggers.Kafka\KafkaMetricConsumer.cs:line 170
-   at KafkaHelloWorld.KafkaMetricConsumerTest.TestMaximalConsumer() in C:\Development\C#\Test Projects\KafkaHelloWorld\KafkaHelloWorld\KafkaMetricConsumerTest.cs:line 113
-   at KafkaHelloWorld.Program.Main(String[] args) in C:\Development\C#\Test Projects\KafkaHelloWorld\KafkaHelloWorld\Program.cs:line 18
-
+(etc...)   
 ```
 
 ### TODO
