@@ -81,56 +81,25 @@ Unhandled exception. System.Exception: Exception occurred on message consumer wo
 (etc...)   
 ```
 
-### TODO
-* Possibly document group id https://www.confluent.io/blog/configuring-apache-kafka-consumer-group-ids/ and offsets.
-* Doco on exception and log Actions
-* Decide what to do with producer idempotence setting (https://docs.confluent.io/platform/current/installation/configuration/producer-configs.html#enable-idempotence)
-* TKey on producer/consumer should be null be default BUT should have an option to override both TKey type and implementation of have value of TKey is derived (likely by an Action&lt;MetricInstanceBase&gt;)
-  * To implement TKey definition will also need client to provide a ValueSerializer
-* Put note in doco about overriding TKey... could result in uneven partitioning
-* And also put a caveat about null TKey causing metric to arrive out of order (however this happens already in MetricLoggerBase so not losing anything)
-* Possibly need to expose an Action&lt;ProducerBuilder&gt; to allow client config
-* Create a utility class which consumes from Kafka and writes to another IMetricLogger instance
-* If you want to put different metric types on different topics, could use MetricFilter and router to multiple Kafka metric loggers
+### Setup
 
-### TODO Documentation
-* Document need for consumer group in consumer setup stuff
-* Standard blurbs that are in all metric logger implementations
-* Overriding logging and exception handling AND Exception handler (non-Kafka one)
-* Uses prorobuf
-* TKey is null -> what are implications for shard partitions
-* Uses default auto commit
-* Explain how consumer runs on a thread
-* Explain error handling on consumer thread
-* Talk about events arriving out of order with null TKey (stuff already out of order with Bufferbase)
-* Discuss idempotence (read confluent link above)
+#### KafkaMetricLogger
 
-### Producer Setup
+The KafkaMetricLogger accepts the following constructor parameters...
 
-Minimal setup
+| Parameter Name | Description | Required |
+| -------------- | ----------- | -------- |
+| category | The category to log all metrics under.  The ability to specify a category allows instances of the same metrics to be logged, but also distinguished from each other... e.g. in the case of a multi-threaded application, the category could be set to reflect an individual thread. | Yes |
+| topic | The kafka topic to write metrics to. | Yes |
+| producerConfig | The configuration to apply to the underlying IProducer&lt;TKey, TValue&gt;. | Yes |
+| logMetricDescriptionAsBlankString | Whether metric's 'description' fields should be sent as a blank strings (and thereby reducing the message sizes). | Yes |
+| bufferProcessingStrategy | An object implementing IBufferProcessingStrategy which decides when the buffers holding logged metric events should be flushed (and be written to the Kafka broker). | Yes |
+| intervalMetricBaseTimeUnit | The base time unit to use to log interval metrics. | Yes |
+| intervalMetricChecking | Specifies whether an exception should be thrown if the correct order of interval metric logging is not followed (e.g. End() method called before Begin()).  Note that this parameter only has an effect when running in 'non-interleaved' mode. | Yes |
+| kafkaErrorHandlingAction | An action to invoke if the underlying Kafka IProducer&lt;TKey, TValue&gt; raises a Kafka Error when a metric is written to the cluster.  Accepts a single parameter which is the Error. | No |
+| logMessageAction | An action to invoke when the underlying Kafka IProducer&lt;TKey, TValue&gt; writes a log message.  Accepts a single parameter which is the LogMessage. | No |
 
-```C#
-// Setup the producer configuration
-ProducerConfig config = new();
-config.BootstrapServers = "127.0.0.1:9092";
-config.AllowAutoCreateTopics = true;
-Action<Exception> bufferProcessingExceptionAction = (Exception e) => { Console.WriteLine($"Exception {e.Message} occurred whilst prcoessing buffers."); };
-using (var bufferProcessingStrategy = new SizeLimitedBufferProcessor(5, bufferProcessingExceptionAction, true))
-using (var metricLogger = new KafkaMetricLogger("TestCategory", "TestTopic", config, false, bufferProcessingStrategy, IntervalMetricBaseTimeUnit.Nanosecond, true))
-{
-    metricLogger.Start();
-
-    Guid beginId = metricLogger.Begin(new MessageReceiveTime());
-    Thread.Sleep(20);
-    metricLogger.Increment(new MessageReceived());
-    metricLogger.Add(new MessageSize(), 2661);
-    metricLogger.End(beginId, new MessageReceiveTime());
-
-    metricLogger.Stop();
-}
-```
-
-Maximal setup
+The code below demonstrates the setup and use case including all constructor parameters...
 
 ```C#
 // Setup the producer configuration
@@ -162,56 +131,20 @@ using (var metricLogger = new KafkaMetricLogger("TestCategory", "TestTopic", con
 }
 ```
 
-KafkaMetricLogger accepts the following constructor parameters...
+#### KafkaMetricConsumer Setup
+
+The KafkaMetricConsumer accepts the following constructor parameters...
 
 | Parameter Name | Description |
 | -------------- | ----------- |
-| category | The category to log all metrics under.  The ability to specify a category allows instances of the same metrics to be logged, but also distinguished from each other... e.g. in the case of a multi-threaded application, the category could be set to reflect an individual thread. |
-| topic | The kafka topic to write metrics to. |
-| producerConfig | The configuration to apply to the underlying IProducer&lt;TKey, TValue&gt;. |
-| logMetricDescriptionAsBlankString | Whether metric's 'description' fields should be sent as a blank strings (and thereby reducing the message sizes). |
-| bufferProcessingStrategy | An object implementing IBufferProcessingStrategy which decides when the buffers holding logged metric events should be flushed (and be written to the Kafka broker). |
-| intervalMetricBaseTimeUnit | The base time unit to use to log interval metrics. |
-| intervalMetricChecking | Specifies whether an exception should be thrown if the correct order of interval metric logging is not followed (e.g. End() method called before Begin()).  Note that this parameter only has an effect when running in 'non-interleaved' mode. |
-| kafkaErrorHandlingAction | An action to invoke if the underlying Kafka IProducer&lt;TKey, TValue&gt; raises a Kafka Error when a metric is written to the cluster.  Accepts a single parameter which is the Error. |
-| logMessageAction | An action to invoke when the underlying Kafka IProducer&lt;TKey, TValue&gt; writes a log message.  Accepts a single parameter which is the LogMessage. |
+| topic | The kafka topic to read metrics from. | Yes |
+| consumerConfig | The configuration to apply to the underlying IConsumer&lt;TKey, TValue&gt;. | Yes |
+| consumeLoopTimeout | The maximum time to wait for a message from the Kafka cluster before timing out and reconnecting (in milliseconds). | Yes |
+| consumeExceptionAction | An action to invoke if an Exception occurs during message consumption.  Accepts a single parameter which is the Exception. | No |
+| kafkaErrorHandlingAction | An action to invoke if the underlying Kafka IConsumer&lt;TKey, TValue&gt; raises a Kafka Error when a metric is consumed from the cluster.  Accepts a single parameter which is the Error. | No |
+| logMessageAction | An action to invoke when the Kafka IConsumer&lt;TKey, TValue&gt; writes a log message.  Accepts a single parameter which is the LogMessage. | No |
 
-### Consumer Setup
-
-Minimal setup
-
-```C#
-// Setup the consumer configuration
-ConsumerConfig config = new();
-config.BootstrapServers = "127.0.0.1:9092";
-config.GroupId = "TestGroupId";
-using (var consumer = new KafkaMetricConsumer("TestTopic", config, 1000))
-{
-    // Create event handler delegate
-    EventHandler<MetricInstanceBase> metricEventReceivedAction = (Object sender, MetricInstanceBase metricInstance) =>
-    {
-        Console.WriteLine($"Received metric '{metricInstance.Name}', '{metricInstance.Description}', '{metricInstance.TypeFullName}");
-    };
-    // Subscribe to the 'MetricEventReceived' event
-    consumer.MetricEventReceived += metricEventReceivedAction;
-    consumer.Start();
-    // (wait for application shutdown)
-    consumer.Stop();
-    consumer.MetricEventReceived -= metricEventReceivedAction;
-}
-```
-
-After calling the consumer.Start() method, the above code will write output like below to the console.
-
-```
-Received metric 'AvailableMemory', 'The amount of free memory in the system in bytes', 'KafkaTest.AvailableMemory
-Received metric 'DiskReadTime', 'The time taken to perform a read operation from disk', 'KafkaTest.DiskReadTime
-Received metric 'DiskReadOperation', 'A disk read operation', 'KafkaTest.DiskReadOperation
-```
-
-KafkaMetricConsumer accepts the following constructor parameters...
-
-Maximal setup
+The code below demonstrates the setup and use case including all constructor parameters...
 
 ```C#
 // Setup the consumer configuration
@@ -247,21 +180,109 @@ using (var consumer = new KafkaMetricConsumer("TestTopic", config, 1000, consume
 }
 ```
 
+After calling the consumer.Start() method, the above code will write output like below to the console.
+
+```
+Received metric 'MessageReceived', 'Represents receiving a message from an external source.', 'KafkaTest.MessageReceived
+Received metric 'MessageSize', 'The size of a message received.', 'KafkaTest.MessageSize
+Received metric 'MessageReceiveTime', 'The time taken to retrieve a message.', 'KafkaTest.MessageReceiveTime
+```
+
+### Non-interleaved Method Overloads
+Methods which support ['non-interleaved' interval metric logging](https://github.com/alastairwyse/ApplicationMetrics#interleaved-interval-metrics) (i.e. overloads of End() and CancelBegin() methods which _don't_ accept a Guid) will be deprecated in a future version of ApplicationMetrics.  Hence it's recommended to only use the End() and CancelBegin() method overloads which accept a 'beginId' Guid parameter.
+
+### Links
+The documentation below was written for version 1.* of ApplicationMetrics.  Minor implementation details may have changed in versions 2.0.0 and above, however the basic principles and use cases documented are still valid.  Note also that this documentation demonstrates the older ['non-interleaved'](https://github.com/alastairwyse/ApplicationMetrics#interleaved-interval-metrics) method of logging interval metrics.
+
+Full documentation for the project...<br />
+[http://www.alastairwyse.net/methodinvocationremoting/application-metrics.html](http://www.alastairwyse.net/methodinvocationremoting/application-metrics.html)
+
+A detailed sample implementation...<br />
+[http://www.alastairwyse.net/methodinvocationremoting/sample-application-5.html](http://www.alastairwyse.net/methodinvocationremoting/sample-application-5.html)
+
+#### Release History
+
+| Version | Changes |
+| ------- | ------- |
+| 1.0.0 | Initial release. | 
+
+
+### TODO
+* Possibly document group id https://www.confluent.io/blog/configuring-apache-kafka-consumer-group-ids/ and offsets.
+* Doco on exception and log Actions
+* Decide what to do with producer idempotence setting (https://docs.confluent.io/platform/current/installation/configuration/producer-configs.html#enable-idempotence)
+* TKey on producer/consumer should be null be default BUT should have an option to override both TKey type and implementation of have value of TKey is derived (likely by an Action&lt;MetricInstanceBase&gt;)
+  * To implement TKey definition will also need client to provide a ValueSerializer
+* Put note in doco about overriding TKey... could result in uneven partitioning
+* And also put a caveat about null TKey causing metric to arrive out of order (however this happens already in MetricLoggerBase so not losing anything)
+* Possibly need to expose an Action&lt;ProducerBuilder&gt; to allow client config
+* Create a utility class which consumes from Kafka and writes to another IMetricLogger instance
+* If you want to put different metric types on different topics, could use MetricFilter and router to multiple Kafka metric loggers
+
+### TODO Documentation
+* Document need for consumer group in consumer setup stuff
+* Standard blurbs that are in all metric logger implementations
+* Overriding logging and exception handling AND Exception handler (non-Kafka one)
+* Uses prorobuf
+* TKey is null -> what are implications for shard partitions
+* Uses default auto commit
+* Explain how consumer runs on a thread
+* Explain error handling on consumer thread
+* Talk about events arriving out of order with null TKey (stuff already out of order with Bufferbase)
+* Discuss idempotence (read confluent link above)
+
+### Producer Setup
+
+
+```C#
+// Setup the producer configuration
+ProducerConfig config = new();
+config.BootstrapServers = "127.0.0.1:9092";
+config.AllowAutoCreateTopics = true;
+Action<Exception> bufferProcessingExceptionAction = (Exception e) => { Console.WriteLine($"Exception {e.Message} occurred whilst prcoessing buffers."); };
+using (var bufferProcessingStrategy = new SizeLimitedBufferProcessor(5, bufferProcessingExceptionAction, true))
+using (var metricLogger = new KafkaMetricLogger("TestCategory", "TestTopic", config, false, bufferProcessingStrategy, IntervalMetricBaseTimeUnit.Nanosecond, true))
+{
+    metricLogger.Start();
+
+    Guid beginId = metricLogger.Begin(new MessageReceiveTime());
+    Thread.Sleep(20);
+    metricLogger.Increment(new MessageReceived());
+    metricLogger.Add(new MessageSize(), 2661);
+    metricLogger.End(beginId, new MessageReceiveTime());
+
+    metricLogger.Stop();
+}
+```
+
+### Consumer Setup
+
+Minimal setup
+
+```C#
+// Setup the consumer configuration
+ConsumerConfig config = new();
+config.BootstrapServers = "127.0.0.1:9092";
+config.GroupId = "TestGroupId";
+using (var consumer = new KafkaMetricConsumer("TestTopic", config, 1000))
+{
+    // Create event handler delegate
+    EventHandler<MetricInstanceBase> metricEventReceivedAction = (Object sender, MetricInstanceBase metricInstance) =>
+    {
+        Console.WriteLine($"Received metric '{metricInstance.Name}', '{metricInstance.Description}', '{metricInstance.TypeFullName}");
+    };
+    // Subscribe to the 'MetricEventReceived' event
+    consumer.MetricEventReceived += metricEventReceivedAction;
+    consumer.Start();
+    // (wait for application shutdown)
+    consumer.Stop();
+    consumer.MetricEventReceived -= metricEventReceivedAction;
+}
+```
+
 ```
 Kafka Log -> Message: [thrd:GroupCoordinator]: GroupCoordinator: 127.0.0.1:9092: Connect to ipv4#127.0.0.1:9092 failed: Unknown error (after 2049ms in state CONNECT, 3 identical error(s) suppressed); Level: Error.
 Kafka Error -> Reason: GroupCoordinator: 127.0.0.1:9092: Connect to ipv4#127.0.0.1:9092 failed: Unknown error (after 2049ms in state CONNECT, 3 identical error(s) suppressed); Code: Local_Transport, IsFatal: False.
 Kafka Error -> Reason: 2/2 brokers are down; Code: Local_AllBrokersDown, IsFatal: False.
 Kafka Log -> Message: [thrd:main]: Offset commit (unassigned partitions) failed for 3/3 partition(s) in join-state wait-unassign-to-complete: Local: Waiting for coordinator: TestTopic((null))[0]@729(Local: Waiting for coordinator), TestTopic((null))[1]@698(Local: Waiting for coordinator), TestTopic((null))[2]@827(Local: Waiting for coordinator); Level: Warning.
 ```
-
-KafkaMetricConsumer accepts the following constructor parameters...
-
-| Parameter Name | Description |
-| -------------- | ----------- |
-| topic | The kafka topic to read metrics from. |
-| consumerConfig | The configuration to apply to the underlying IConsumer&lt;TKey, TValue&gt;. |
-| consumeLoopTimeout | The maximum time to wait for a message from the Kafka cluster before timing out and reconnecting (in milliseconds). |
-| consumeExceptionAction | An action to invoke if an Exception occurs during message consumption.  Accepts a single parameter which is the Exception. |
-| kafkaErrorHandlingAction | An action to invoke if the underlying Kafka IConsumer&lt;TKey, TValue&gt; raises a Kafka Error when a metric is consumed from the cluster.  Accepts a single parameter which is the Error. |
-| logMessageAction | An action to invoke when the Kafka IConsumer&lt;TKey, TValue&gt; writes a log message.  Accepts a single parameter which is the LogMessage. |
-
