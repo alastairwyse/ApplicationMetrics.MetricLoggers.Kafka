@@ -158,9 +158,6 @@ The KafkaMetricConsumer performs consumption from the broker on a worker thread.
 
 For example, setting the 'consumeExceptionAction' parameter to the following action...
 
-#### Offsets / Commits
-By default [IConsumer](https://docs.confluent.io/platform/current/clients/confluent-kafka-dotnet/_site/api/Confluent.Kafka.IConsumer-2.html) underlying the KafkaMetricConsumer uses the default [auto-commit offsets](https://docs.confluent.io/platform/current/clients/consumer.html#offset-management) setting.  Commit settings can be adjusted via the [ConsumerConfig](https://docs.confluent.io/platform/current/clients/confluent-kafka-dotnet/_site/api/Confluent.Kafka.ConsumerConfig.html).
-
 ```C#
 ConsumerConfig config = new();
 config.BootstrapServers = "127.0.0.1:9092";
@@ -198,6 +195,9 @@ Unhandled exception. System.Exception: Exception occurred on message consumer wo
    at ApplicationMetrics.MetricLoggers.Kafka.KafkaMetricConsumer.Stop() in C:\Development\C#\ApplicationMetrics.MetricLoggers.Kafka\ApplicationMetrics.MetricLoggers.Kafka\KafkaMetricConsumer.cs:line 170
 (etc...)   
 ```
+
+#### Offsets / Commits
+By default [IConsumer](https://docs.confluent.io/platform/current/clients/confluent-kafka-dotnet/_site/api/Confluent.Kafka.IConsumer-2.html) underlying the KafkaMetricConsumer uses the default [auto-commit offsets](https://docs.confluent.io/platform/current/clients/consumer.html#offset-management) setting.  Commit settings can be adjusted via the [ConsumerConfig](https://docs.confluent.io/platform/current/clients/confluent-kafka-dotnet/_site/api/Confluent.Kafka.ConsumerConfig.html).
 
 ### Non-interleaved Method Overloads
 Methods which support ['non-interleaved' interval metric logging](https://github.com/alastairwyse/ApplicationMetrics#interleaved-interval-metrics) (i.e. overloads of End() and CancelBegin() methods which _don't_ accept a Guid) will be deprecated in a future version of ApplicationMetrics.  Hence it's recommended to only use the End() and CancelBegin() method overloads which accept a 'beginId' Guid parameter.
