@@ -20,6 +20,8 @@ Whilst the [IMetricLogger](https://github.com/alastairwyse/ApplicationMetrics/bl
 
 [AmountMetricInstance](https://github.com/alastairwyse/ApplicationMetrics.MetricLoggers.Kafka/blob/main/ApplicationMetrics.MetricLoggers.Kafka/Models/AmountMetricInstance.cs), [IntervalMetricInstance](https://github.com/alastairwyse/ApplicationMetrics.MetricLoggers.Kafka/blob/main/ApplicationMetrics.MetricLoggers.Kafka/Models/IntervalMetricInstance.cs), and [StatusMetricInstance](https://github.com/alastairwyse/ApplicationMetrics.MetricLoggers.Kafka/blob/main/ApplicationMetrics.MetricLoggers.Kafka/Models/StatusMetricInstance.cs) classes additionally define numeric properties storing their associated metric values.
 
+These classes are serialized via [Protocol Buffers](https://protobuf.dev/) when passed over Kafka brokers.
+
 ### Setup
 
 #### KafkaMetricLogger
@@ -156,6 +158,9 @@ The KafkaMetricConsumer performs consumption from the broker on a worker thread.
 
 For example, setting the 'consumeExceptionAction' parameter to the following action...
 
+#### Offsets / Commits
+By default [IConsumer](https://docs.confluent.io/platform/current/clients/confluent-kafka-dotnet/_site/api/Confluent.Kafka.IConsumer-2.html) underlying the KafkaMetricConsumer uses the default [auto-commit offsets](https://docs.confluent.io/platform/current/clients/consumer.html#offset-management) setting.  Commit settings can be adjusted via the [ConsumerConfig](https://docs.confluent.io/platform/current/clients/confluent-kafka-dotnet/_site/api/Confluent.Kafka.ConsumerConfig.html).
+
 ```C#
 ConsumerConfig config = new();
 config.BootstrapServers = "127.0.0.1:9092";
@@ -216,11 +221,7 @@ A detailed sample implementation...<br />
 ### TODO
 
 * If you want to put different metric types on different topics, could use MetricFilter and router to multiple Kafka metric loggers
-* Uses prorobuf
-* TKey on producer/consumer should be null be default BUT should have an option to override both TKey type and implementation of have value of TKey is derived (likely by an Action&lt;MetricInstanceBase&gt;)
-  * To implement TKey definition will also need client to provide a ValueSerializer (both put in potential future change list)
-* Create a utility class which consumes from Kafka and writes to another IMetricLogger instance
-* Uses default auto commit
+
 
 ### Producer Setup
 
